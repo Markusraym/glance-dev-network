@@ -94,6 +94,16 @@ TOOLS = [
         ["app_dir"],
     ),
     _tool(
+        "write_previews",
+        "Render the catalog preview images into the app's preview/ folder — "
+        "preview/<page>.png at native resolution plus preview/preview.png, "
+        "the stacked poster (the same files Studio and `gdn submit` "
+        "generate). Run this once the app looks right, so the app folder is "
+        "catalog-complete.",
+        {"app_dir": {"type": "string", "description": "The app folder"}},
+        ["app_dir"],
+    ),
+    _tool(
         "list_fonts",
         "List the bundled bitmap fonts with their pixel heights. Fonts have "
         "UPPERCASE letters only — lowercase draws nothing.",
@@ -245,6 +255,19 @@ def tool_validate_app(args):
     return [_text(out)], False
 
 
+def tool_write_previews(args):
+    app_dir = Path(args["app_dir"]).resolve()
+    if not (app_dir / "app.star").exists():
+        return [_text(f"error: {app_dir} has no app.star")], True
+    from .preview import write_previews
+    try:
+        write_previews(app_dir)
+    except Exception as e:  # noqa: BLE001
+        return [_text(f"preview generation failed: {e!r}")], True
+    made = sorted(p.name for p in (app_dir / "preview").glob("*.png"))
+    return [_text("Wrote preview/ images: " + ", ".join(made))], False
+
+
 def tool_list_fonts(args):
     lines = [f"{n:16s} height {fonts.font_height(n):2d}px"
              for n in fonts.list_fonts()]
@@ -285,6 +308,7 @@ HANDLERS = {
     "create_app": tool_create_app,
     "render_app": tool_render_app,
     "validate_app": tool_validate_app,
+    "write_previews": tool_write_previews,
     "list_fonts": tool_list_fonts,
     "measure_text": tool_measure_text,
     "list_colors": tool_list_colors,
