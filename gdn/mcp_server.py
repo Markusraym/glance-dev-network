@@ -62,7 +62,11 @@ TOOLS = [
         "4x actual size) so you can see exactly what the LED panel will "
         "display. Also returns the app's own print() output. Look at the "
         "image carefully — check for clipped text, overlapping elements, and "
-        "unreadable colors — and iterate until it looks right.",
+        "unreadable colors — and iterate until it looks right. For apps that "
+        "fetch data, ALSO render once with simulate_offline=true and once "
+        "with a nonsense input (bad ZIP, unknown city) to see the fallback "
+        "screens — a panel on a wall must show something sensible when the "
+        "data is missing.",
         {
             "app_dir": {"type": "string", "description": "The app folder"},
             "page": {"type": "integer",
@@ -72,14 +76,20 @@ TOOLS = [
             "now": {"type": "string",
                     "description": "Optional ISO time to render as-if, "
                                    "e.g. 2027-12-31T23:59"},
+            "simulate_offline": {
+                "type": "boolean",
+                "description": "Make every http.get fail (status_code 0, no "
+                               "cache) to see the app's no-data fallback."},
         },
         ["app_dir"],
     ),
     _tool(
         "validate_app",
         "Fully render every page of an app and run the publish-time lint — "
-        "the same check `gdn submit` and CI run. ALWAYS run this before "
-        "telling the user an app is finished, and fix every error it reports.",
+        "the same check `gdn submit` and CI run — plus a no-network render "
+        "to confirm the app falls back gracefully when its API is down. "
+        "ALWAYS run this before telling the user an app is finished, and fix "
+        "every error it reports.",
         {"app_dir": {"type": "string", "description": "The app folder"}},
         ["app_dir"],
     ),
@@ -148,6 +158,23 @@ def _scaled_png(canvas):
     return buf.getvalue()
 
 
+import contextlib
+import os
+
+
+@contextlib.contextmanager
+def _offline(enabled):
+    """Flip GDN_HTTP_OFFLINE for the sandboxed child (it inherits our env)."""
+    if not enabled:
+        yield
+        return
+    os.environ["GDN_HTTP_OFFLINE"] = "1"
+    try:
+        yield
+    finally:
+        os.environ.pop("GDN_HTTP_OFFLINE", None)
+
+
 def tool_render_app(args):
     from .starhost import (StarError, StarTimeout, app_page_count,
                            run_star_app_sandboxed)
@@ -156,19 +183,27 @@ def tool_render_app(args):
     if not (app_dir / "app.star").exists():
         return [_text(f"error: {app_dir} has no app.star")], True
     page = int(args.get("page") or 1)
+    offline = bool(args.get("simulate_offline"))
     try:
-        scene, logs = run_star_app_sandboxed(
-            app_dir, args.get("inputs") or {}, only_page=page,
-            now=args.get("now") or None, return_logs=True)
+        with _offline(offline):
+            scene, logs = run_star_app_sandboxed(
+                app_dir, args.get("inputs") or {}, only_page=page,
+                now=args.get("now") or None, return_logs=True)
         canvases = render_scene(scene, asset_dir=app_dir)
     except (StarError, StarTimeout, SceneError) as e:
         msg = getattr(e, "message", None) or "; ".join(
             getattr(e, "errors", []) or [str(e)])
+        if offline:
+            msg += ("\n(simulate_offline was on: the app CRASHES with no "
+                    "network — add a fallback drawing for status_code != 200)")
         return [_text(f"RENDER FAILED: {msg}")], True
     name, canvas = next(iter(canvases.items()))
     pages = app_page_count(app_dir)
     caption = (f"Page {page}/{pages} ({name}) — {canvas.width}x{canvas.height} "
                f"panel, shown {RENDER_SCALE}x actual size.")
+    if offline:
+        caption += ("\nsimulate_offline=true: every http.get failed — this is "
+                    "the app's no-data fallback screen.")
     if logs:
         caption += "\napp print() output:\n" + "\n".join(logs)
     return [_text(caption), _image(_scaled_png(canvas))], False
@@ -194,6 +229,16 @@ def tool_validate_app(args):
     errors, warns = check_app(app_dir)
     if errors:
         return [_text("FAIL (lint):\n" + "\n".join(f"- {e}" for e in errors))], True
+    # A panel on a wall must show *something* when its API is down: render once
+    # with HTTP disabled and warn if the app crashes instead of falling back.
+    try:
+        with _offline(True):
+            scene = run_star_app_sandboxed(app_dir, {}, only_page=1)
+        render_scene(scene, asset_dir=app_dir)
+    except (StarError, StarTimeout, SceneError):
+        warns = list(warns) + [
+            "app CRASHES when http.get fails — draw a fallback when "
+            "status_code != 200 (check it with render_app simulate_offline)"]
     out = f"PASS — {pages} page{'s' if pages != 1 else ''} render cleanly."
     if warns:
         out += "\nwarnings:\n" + "\n".join(f"- {w}" for w in warns)
