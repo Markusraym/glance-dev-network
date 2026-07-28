@@ -1,6 +1,9 @@
 # Gasparilla countdown for a Glance Scroll panel (192x32).
 # Draws PIRATE_FLAG.png on the left and days-until-Gasparilla on the right.
 
+EVENT_DATE = (2027, 1, 30)   # hardcoded festival date (Y, M, D)
+LABEL      = "GASPARILLA"    # hardcoded header text
+
 # Days since an epoch for a civil date (Hinnant's algorithm). We only ever
 # subtract two of these, so the epoch it counts from doesn't matter.
 def days_from_civil(y, m, d):
@@ -12,12 +15,6 @@ def days_from_civil(y, m, d):
     doe = yoe * 365 + yoe // 4 - yoe // 100 + doy
     return era * 146097 + doe - 719468
 
-def parse_date(s):
-    p = s.split("-")
-    if len(p) != 3:
-        return None
-    return (int(p[0]), int(p[1]), int(p[2]))
-
 def font_h(name):
     return int(name.split("x")[1])
 
@@ -28,9 +25,8 @@ def fit_font(c, text, options, maxw):
     return options[len(options) - 1]
 
 def countdown(c, ctx):
-    label  = ctx.inputs.get("label", "GASPARILLA").upper()
+    label  = LABEL
     accent = ctx.inputs.get("accent", "#FFC300")
-    target = parse_date(ctx.inputs.get("eventdate", "2027-01-30"))
 
     c.fill("black")
     c.image("PIRATE_FLAG.png", 2, 0, w = 48, h = 32)
@@ -39,13 +35,8 @@ def countdown(c, ctx):
     tw = c.width - tx - 2
     cx = tx + tw // 2
 
-    if target == None:
-        c.text(label, cx, 0, font = fit_font(c, label, ["6x8", "5x7", "4x5"], tw), color = accent, align = "center")
-        c.text("SET DATE", cx, 14, font = "6x8", color = "red", align = "center")
-        return
-
     today = days_from_civil(ctx.now.year, ctx.now.month, ctx.now.day)
-    event = days_from_civil(target[0], target[1], target[2])
+    event = days_from_civil(EVENT_DATE[0], EVENT_DATE[1], EVENT_DATE[2])
     n = event - today
 
     if n <= 0:
@@ -67,8 +58,8 @@ def countdown(c, ctx):
     numcx  = startx + nw // 2          # center of the number itself
 
     # Header, centered over the number's midpoint (not the whole area).
-    label = fit_label(c, label, ["6x8", "5x7", "4x5"], tw, numcx)
-    c.text(label[0], label[1], 0, font = label[2], color = accent, align = "center")
+    hdr = fit_label(c, label, ["6x8", "5x7", "4x5"], tw, numcx)
+    c.text(hdr[0], hdr[1], 0, font = hdr[2], color = accent, align = "center")
 
     numy = 8 + (24 - nh) // 2
     c.text(numstr, startx, numy, font = numfont, color = "white", align = "left")
