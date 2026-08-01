@@ -1,22 +1,50 @@
-# Personal Weather Station (PWS) Weather Underground
+# Personal Weather Station (PWS) – Weather Underground (Version 2.0)
 
-Display real-time localized weather data on your Glance Scroll straight from your own Weather Underground personal weather station!
+Display real-time localized weather data on your Glance panel straight from your own Weather Underground personal weather station.
 
-## ⚙️ App Settings Configuration
+## ⚙️ App Settings
 
-When adding this widget to your Glance layout, you will need to configure the following required fields in the settings menu:
+When adding this widget you will need to configure the following fields:
 
-*   **Station ID**: The unique identity string given to your hardware tracker on your Weather Underground dashboard.
-*   **API Key**: Your personal API token string required to pull data streams securely.
+* **Station ID**  
+  The unique ID of your hardware station on the Weather Underground dashboard (example: `KOKEDMON408`).
+
+* **API Key**  
+  Your personal API token used to securely pull data.
+
+* **Temperature Unit**  
+  Choose how temperatures and related values are displayed:
+  - **Fahrenheit** – °F, inHg, mph, inches  
+  - **Celsius** – °C, mb, km/h, mm  
+  - **Hybrid (UK)** – °C, mb, mph, mm  (In Development)
+
+* **Location Label** (optional)  
+  Custom name shown on the display (e.g. Home, Cabin). Leave blank to use the station neighborhood/city.
 
 ---
 
 ## 🔑 How to Retrieve Your API Key
 
-If you own a compatible weather station reporting data directly to Weather Underground, you can generate your API credentials completely free of charge:
+If you own a weather station that reports to Weather Underground you can generate an API key for free:
 
-1. Head over to the official portal at [://wunderground.com](https://www.://wunderground.com) and sign in.
-2. Navigate to the **My Devices** tab on your user dashboard.
-3. Look for the **API Keys** section listed on the control pane.
-4. Click the blue **Generate** button to render a new unique credentials token.
-5. Copy that token string and paste it straight into your Glance app configuration panel!
+1. Go to [wunderground.com](https://www.wunderground.com) and sign in.
+2. Open the **My Devices** (or Member Settings) section.
+3. Find the **API Keys** area.
+4. Click **Generate** to create a new key.
+5. Copy the key and paste it into the Glance app settings.
+
+---
+
+## Pages
+
+- **Main** – Current conditions, temperature, feels-like, pressure, humidity, dewpoint  
+- **Wind** – Speed, gust, and direction  
+- **Rain** – Today’s total, current rate, status + sparklines  
+
+---
+
+## Notes
+
+- Data refreshes according to the interval set in the Glance layout.
+- Free PWS API keys are limited to roughly **1,500 calls per day** and **30 calls per minute**.
+- Some icons and advanced conditions require the station to report the necessary sensors (UV, solar radiation, etc.).
