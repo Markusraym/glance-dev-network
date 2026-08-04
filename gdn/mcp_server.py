@@ -6,12 +6,19 @@ validate, and look up fonts/colors/text widths. Run it with `gdn mcp`, or let
 a client launch it via the `.mcp.json` at the repo root — cloning the repo and
 opening Claude Code inside it is all the setup there is.
 
-The protocol is JSON-RPC 2.0 over stdio, newline-delimited. A tools-only MCP
-server needs exactly five methods (initialize, the initialized notification,
-ping, tools/list, tools/call), so this speaks the protocol directly instead of
-adding an SDK dependency — `pip install -e .` stays as light as it is today,
-and the server works offline like the rest of gdn. stdout carries protocol
-frames ONLY; anything human-readable goes to stderr.
+The protocol is JSON-RPC 2.0 over stdio, newline-delimited. The handful of
+methods a tools/resources/prompts server needs (initialize, the initialized
+notification, ping, and the list/call pairs) is small enough to speak directly
+instead of adding an SDK dependency — `pip install -e .` stays as light as it is
+today, and the server works offline like the rest of gdn. stdout carries
+protocol frames ONLY; anything human-readable goes to stderr.
+
+Beyond the tools, the server hands the assistant the things it cannot guess:
+`instructions` on the initialize result carries the rules that fail silently
+(uppercase fonts, http.get returning a dict), and the resources expose the full
+authoring reference plus a working app to copy from. In Claude Code the repo is
+on disk and the model can just read it; in Claude Desktop and other clients this
+is the only way it learns the API.
 """
 from __future__ import annotations
 
@@ -29,11 +36,23 @@ PROTOCOL_VERSION = "2025-06-18"
 # upscaled; 4x nearest-neighbor keeps pixels crisp and the payload tiny.
 RENDER_SCALE = 4
 
+# An app with a print() in a loop would otherwise stream unbounded text into the
+# assistant's context. Enough to debug with, not enough to drown in.
+MAX_LOG_CHARS = 4000
+
 
 # ---------------------------------------------------------------- tools
 
-def _tool(name, description, properties, required):
-    return {
+def _tool(name, description, properties, required, annotations=None):
+    """One tool definition.
+
+    `annotations` are the MCP behaviour hints clients use to decide what to
+    auto-approve. Getting them right matters here: the render-look-fix loop is
+    only pleasant if the read-only calls run without a confirmation prompt each
+    time. Defaults per spec are readOnly=false / destructive=true /
+    idempotent=false / openWorld=true, so every tool states what it means.
+    """
+    t = {
         "name": name,
         "description": description,
         "inputSchema": {
@@ -42,6 +61,19 @@ def _tool(name, description, properties, required):
             "required": required,
             "additionalProperties": False,
         },
+    }
+    if annotations:
+        t["annotations"] = annotations
+    return t
+
+
+def _hints(title, read_only, open_world, idempotent, destructive=False):
+    return {
+        "title": title,
+        "readOnlyHint": read_only,
+        "destructiveHint": destructive,
+        "idempotentHint": idempotent,
+        "openWorldHint": open_world,
     }
 
 
@@ -55,6 +87,9 @@ TOOLS = [
         {"path": {"type": "string",
                   "description": "Folder to create, e.g. apps/surf-report"}},
         ["path"],
+        # Writes, but refuses a non-empty destination — it can't clobber work.
+        _hints("Scaffold a new app", read_only=False, open_world=False,
+               idempotent=False),
     ),
     _tool(
         "render_app",
@@ -82,6 +117,9 @@ TOOLS = [
                                "cache) to see the app's no-data fallback."},
         },
         ["app_dir"],
+        # Draws to memory, writes nothing — but the app itself may http.get.
+        _hints("Render a page as an image", read_only=True, open_world=True,
+               idempotent=True),
     ),
     _tool(
         "validate_app",
@@ -92,6 +130,8 @@ TOOLS = [
         "every error it reports.",
         {"app_dir": {"type": "string", "description": "The app folder"}},
         ["app_dir"],
+        _hints("Validate an app", read_only=True, open_world=True,
+               idempotent=True),
     ),
     _tool(
         "write_previews",
@@ -102,12 +142,17 @@ TOOLS = [
         "catalog-complete.",
         {"app_dir": {"type": "string", "description": "The app folder"}},
         ["app_dir"],
+        # Overwrites preview/*.png, but those are generated output, not source:
+        # re-running costs nothing and destroys no authored work.
+        _hints("Write catalog previews", read_only=False, open_world=False,
+               idempotent=True),
     ),
     _tool(
         "list_fonts",
         "List the bundled bitmap fonts with their pixel heights. Fonts have "
         "UPPERCASE letters only — lowercase draws nothing.",
         {}, [],
+        _hints("List fonts", read_only=True, open_world=False, idempotent=True),
     ),
     _tool(
         "measure_text",
@@ -120,12 +165,16 @@ TOOLS = [
                      "description": "Font name, e.g. 5x7 (see list_fonts)"},
         },
         ["text", "font"],
+        _hints("Measure text width", read_only=True, open_world=False,
+               idempotent=True),
     ),
     _tool(
         "list_colors",
         "List the named colors (with hex values) that color=\"...\" accepts. "
         "Any #rrggbb hex also works.",
         {}, [],
+        _hints("List colors", read_only=True, open_world=False,
+               idempotent=True),
     ),
 ]
 
@@ -195,11 +244,14 @@ def tool_render_app(args):
     page = int(args.get("page") or 1)
     offline = bool(args.get("simulate_offline"))
     try:
+        # render_scene resolves the app's assets, so it belongs inside the
+        # offline window too — outside it, a "no network" render could still
+        # pull a remote asset and show a screen the real failure never shows.
         with _offline(offline):
             scene, logs = run_star_app_sandboxed(
                 app_dir, args.get("inputs") or {}, only_page=page,
                 now=args.get("now") or None, return_logs=True)
-        canvases = render_scene(scene, asset_dir=app_dir)
+            canvases = render_scene(scene, asset_dir=app_dir)
     except (StarError, StarTimeout, SceneError) as e:
         msg = getattr(e, "message", None) or "; ".join(
             getattr(e, "errors", []) or [str(e)])
@@ -207,6 +259,12 @@ def tool_render_app(args):
             msg += ("\n(simulate_offline was on: the app CRASHES with no "
                     "network — add a fallback drawing for status_code != 200)")
         return [_text(f"RENDER FAILED: {msg}")], True
+    if not canvases:
+        return [_text(
+            f"RENDER FAILED: page {page} produced no canvas — check that "
+            f"`def <page>(c, ctx):` exists for it and that the page is listed "
+            f"in manifest.yaml."
+        )], True
     name, canvas = next(iter(canvases.items()))
     pages = app_page_count(app_dir)
     caption = (f"Page {page}/{pages} ({name}) — {canvas.width}x{canvas.height} "
@@ -215,7 +273,11 @@ def tool_render_app(args):
         caption += ("\nsimulate_offline=true: every http.get failed — this is "
                     "the app's no-data fallback screen.")
     if logs:
-        caption += "\napp print() output:\n" + "\n".join(logs)
+        out = "\n".join(logs)
+        if len(out) > MAX_LOG_CHARS:
+            dropped = len(out) - MAX_LOG_CHARS
+            out = out[:MAX_LOG_CHARS] + f"\n... [{dropped} more chars truncated]"
+        caption += "\napp print() output:\n" + out
     return [_text(caption), _image(_scaled_png(canvas))], False
 
 
@@ -244,7 +306,7 @@ def tool_validate_app(args):
     try:
         with _offline(True):
             scene = run_star_app_sandboxed(app_dir, {}, only_page=1)
-        render_scene(scene, asset_dir=app_dir)
+            render_scene(scene, asset_dir=app_dir)  # inside: assets are network too
     except (StarError, StarTimeout, SceneError):
         warns = list(warns) + [
             "app CRASHES when http.get fails — draw a fallback when "
@@ -315,6 +377,112 @@ HANDLERS = {
 }
 
 
+# ---------------------------------------------------------------- context
+
+_DATA = Path(__file__).resolve().parent / "data"
+
+# Handed to the client on initialize and injected as server guidance for the
+# session. Deliberately short — it is paid on every request — and limited to the
+# rules that fail SILENTLY or at runtime: a lowercase string simply doesn't
+# draw, and resp.status_code raises where resp["status_code"] works. Everything
+# else (the full drawing API, the helper list, input types) lives in the
+# authoring reference resource, which the assistant can pull when it needs it.
+INSTRUCTIONS = """\
+These tools build apps for Glance LED panels. Before writing app.star, read the \
+`glance://reference/authoring` resource — it has the panel model, the full \
+drawing API, and the manifest schema. `glance://template/app.star` is a working \
+app to copy from.
+
+The rules that bite hardest, because nothing errors when you break them:
+- Panels are 32px tall. Keep text short and high-contrast.
+- Fonts are UPPERCASE ONLY — call .upper() on text, or nothing draws.
+- Frames are still images. Never animate or scroll; the panel re-renders on the \
+manifest's refresh timer.
+- http.get returns a DICT read with subscripts: resp["status_code"], \
+resp["json"]. The dotted form errors. Check status_code == 200 first.
+- API-key inputs must use app_input_type: api-key, and the input name must not \
+contain _ or - (use "apikey").
+
+Render and LOOK at the image rather than assuming — clipped text and unreadable \
+colors only show up visually.
+"""
+
+
+def _read(path):
+    return Path(path).read_text(encoding="utf-8")
+
+
+def _template(name):
+    from .cli import TEMPLATES
+    return _read(TEMPLATES / "example-star" / name)
+
+
+# `_load` is stripped before the list goes over the wire.
+RESOURCES = [
+    {
+        "uri": "glance://reference/authoring",
+        "name": "authoring_reference",
+        "title": "Writing a GDN app",
+        "description": "The panel model, the full c.* drawing API and helpers, "
+                       "http.get, manifest inputs, and the rules that fail "
+                       "silently. Read before writing app.star.",
+        "mimeType": "text/markdown",
+        "_load": lambda: _read(_DATA / "agent_reference.md"),
+    },
+    {
+        "uri": "glance://template/app.star",
+        "name": "template_app_star",
+        "title": "Example app.star",
+        "description": "A complete working app — the same one create_app "
+                       "scaffolds. Copy its structure.",
+        "mimeType": "text/plain",
+        "_load": lambda: _template("app.star"),
+    },
+    {
+        "uri": "glance://template/manifest.yaml",
+        "name": "template_manifest",
+        "title": "Example manifest.yaml",
+        "description": "A complete manifest showing pages, refresh, and a "
+                       "declared input.",
+        "mimeType": "text/yaml",
+        "_load": lambda: _template("manifest.yaml"),
+    },
+]
+
+PROMPTS = [
+    {
+        "name": "build_an_app",
+        "title": "Build a Glance app",
+        "description": "Start an app with the panel rules and drawing API "
+                       "already loaded, so the assistant writes real GDN code "
+                       "instead of guessing from another platform.",
+        "arguments": [
+            {"name": "description", "required": False,
+             "description": "What the app should show, in a sentence or two."},
+            {"name": "path", "required": False,
+             "description": "Folder to create, e.g. apps/surf-report."},
+        ],
+    },
+]
+
+
+def _build_an_app(args):
+    """The reference, plus the ask — self-contained for clients that surface
+    prompts as slash commands but won't go fetch a resource on their own."""
+    want = (args.get("description") or "").strip()
+    where = (args.get("path") or "").strip()
+    out = [_read(_DATA / "agent_reference.md"), "---", ""]
+    out.append(f"Build this app: {want}" if want
+               else "Ask me what app to build, then build it.")
+    if where:
+        out.append(f"Create it at {where}.")
+    out.append("")
+    out.append("Use the glance tools to work the loop above: scaffold, render "
+               "and look at the result, fix what you see, check the failure "
+               "screens, validate, and write the catalog previews.")
+    return "\n".join(out)
+
+
 # ---------------------------------------------------------------- protocol
 
 def _result(id_, result):
@@ -331,13 +499,47 @@ def _handle(msg):
     if method == "initialize":
         return _result(id_, {
             "protocolVersion": PROTOCOL_VERSION,
-            "capabilities": {"tools": {}},
+            "capabilities": {"tools": {}, "resources": {}, "prompts": {}},
             "serverInfo": {"name": "gdn", "version": __version__},
+            "instructions": INSTRUCTIONS,
         })
     if method == "ping":
         return _result(id_, {})
     if method == "tools/list":
         return _result(id_, {"tools": TOOLS})
+    if method == "resources/list":
+        return _result(id_, {"resources": [
+            {k: v for k, v in r.items() if not k.startswith("_")}
+            for r in RESOURCES
+        ]})
+    if method == "resources/read":
+        uri = (msg.get("params") or {}).get("uri")
+        res = next((r for r in RESOURCES if r["uri"] == uri), None)
+        if res is None:
+            return _error(id_, -32602, f"unknown resource {uri!r}")
+        try:
+            text = res["_load"]()
+        except OSError as e:
+            return _error(id_, -32603, f"cannot read {uri}: {e}")
+        return _result(id_, {"contents": [
+            {"uri": uri, "mimeType": res["mimeType"], "text": text},
+        ]})
+    if method == "prompts/list":
+        return _result(id_, {"prompts": PROMPTS})
+    if method == "prompts/get":
+        params = msg.get("params") or {}
+        if params.get("name") != "build_an_app":
+            return _error(id_, -32602, f"unknown prompt {params.get('name')!r}")
+        try:
+            text = _build_an_app(params.get("arguments") or {})
+        except OSError as e:
+            return _error(id_, -32603, f"cannot build prompt: {e}")
+        return _result(id_, {
+            "description": "Build a Glance app with the panel rules loaded.",
+            "messages": [
+                {"role": "user", "content": {"type": "text", "text": text}},
+            ],
+        })
     if method == "tools/call":
         params = msg.get("params") or {}
         handler = HANDLERS.get(params.get("name"))
@@ -357,7 +559,8 @@ def serve() -> int:
     """Speak newline-delimited JSON-RPC on stdin/stdout until EOF."""
     stdin = io.TextIOWrapper(sys.stdin.buffer, encoding="utf-8")
     stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", newline="\n")
-    print(f"gdn mcp: serving {len(TOOLS)} tools on stdio", file=sys.stderr)
+    print(f"gdn mcp: serving {len(TOOLS)} tools, {len(RESOURCES)} resources, "
+          f"{len(PROMPTS)} prompts on stdio", file=sys.stderr)
     for line in stdin:
         line = line.strip()
         if not line:
