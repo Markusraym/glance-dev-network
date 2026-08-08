@@ -3,7 +3,7 @@ id: nascar-pylon
 version: 1.0.0
 name: NASCAR Scoring Pylon
 author: reyos86
-description: Full-field scoring pylon for Cup, Xfinity, and Trucks — position moves, pits, DVP, garage, fastest lap, and lead-lap status.
+description: Full-field scoring pylon for Cup, O'Reilly, and Trucks — position moves, pits, DVP, garage, fastest lap, and lead-lap status.
 category: Sports
 entry: app.star
 width: 384
@@ -17,5 +17,5 @@ inputs:
     app_input_type: dropdown
     label: Series
     default: CUP
-    choices: [CUP, XFINITY, TRUCKS]
-    help: Which NASCAR national series to follow.
+    choices: [CUP, OREILLY, TRUCKS]
+    help: Which NASCAR national series to follow (Cup, O'Reilly Auto Parts, Trucks).
