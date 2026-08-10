@@ -1,0 +1,27 @@
+gdn: 1
+id: flip-clock-scroll
+version: 0.1.0
+name: Flip Clock (Scroll)
+author: glance-led-dev
+description: Split-flap cards for the time, with a matching date board.
+category: Time
+entry: app.star
+
+width: 192
+height: 32
+refresh: 60
+
+pages: [clock, date]
+
+inputs:
+  - key: zip
+    type: string
+    app_input_type: free-text
+    label: Zip code
+    default: "10001"
+    help: US zip code. Sets your timezone, daylight saving included.
+  - key: accent
+    type: string
+    app_input_type: color
+    label: Accent color
+    default: "#F5E14B"
