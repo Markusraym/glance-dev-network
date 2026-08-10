@@ -1,0 +1,22 @@
+gdn: 1
+id: stripe-revenue
+version: 0.1.0
+name: Stripe Revenue
+author: glance-led-dev
+description: Your available Stripe balance, per currency, at a glance.
+category: Finance
+entry: app.star
+
+width: 64
+height: 32
+refresh: 900
+
+pages: [balance]
+
+inputs:
+  - key: apikey
+    type: string
+    app_input_type: api-key
+    label: Stripe restricted key
+    default: ""
+    help: Developers -> API keys -> restricted key with balance read access.
