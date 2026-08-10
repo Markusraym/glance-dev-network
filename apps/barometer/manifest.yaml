@@ -1,0 +1,25 @@
+gdn: 1
+id: barometer
+version: 0.1.0
+name: Barometer
+author: glance-led-dev
+description: Air pressure and which way it is going — the oldest forecast there is.
+category: Weather
+entry: app.star
+
+width: 64
+height: 32
+refresh: 1800
+
+pages: [pressure]
+
+assets:
+  - GAUGE.png
+
+inputs:
+  - key: zip
+    type: string
+    app_input_type: free-text
+    label: Zip code
+    default: "10001"
+    help: US zip code. Sets the location.
