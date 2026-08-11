@@ -1,0 +1,31 @@
+gdn: 1
+id: steam-status-scroll
+version: 0.1.0
+name: Steam Friends (Scroll)
+author: glance-led-dev
+description: Which of your friends are online and what they are playing.
+category: Entertainment
+entry: app.star
+
+width: 192
+height: 32
+refresh: 600
+
+pages: [friends]
+
+assets:
+  - PAD.png
+
+inputs:
+  - key: apikey
+    type: string
+    app_input_type: api-key
+    label: Steam Web API key
+    default: ""
+    help: Free from steamcommunity.com/dev/apikey.
+  - key: steamid
+    type: string
+    app_input_type: free-text
+    label: Your SteamID64
+    default: ""
+    help: 17-digit id. Find it with steamid.io.
