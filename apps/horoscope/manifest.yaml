@@ -1,0 +1,36 @@
+gdn: 1
+id: horoscope
+version: 0.1.0
+name: Horoscope
+author: reyos86
+description: Daily zodiac vibe for your sign — glyph plus a short punchline on the Scroll.
+category: Lifestyle
+entry: app.star
+width: 192
+height: 32
+# Daily content; refresh hourly. http.get TTL caches longer so the API is not hammered.
+refresh: 3600
+pages: [main]
+
+inputs:
+  - key: zodiacsign
+    type: choice
+    app_input_type: dropdown
+    label: Zodiac sign
+    default: aries
+    choices: [aries, taurus, gemini, cancer, leo, virgo, libra, scorpio, sagittarius, capricorn, aquarius, pisces]
+    help: Which zodiac sign to display.
+
+assets:
+  - aries.png
+  - taurus.png
+  - gemini.png
+  - cancer.png
+  - leo.png
+  - virgo.png
+  - libra.png
+  - scorpio.png
+  - sagittarius.png
+  - capricorn.png
+  - aquarius.png
+  - pisces.png
