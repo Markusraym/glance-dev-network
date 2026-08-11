@@ -1,0 +1,31 @@
+gdn: 1
+id: rss-headlines
+version: 0.1.0
+name: RSS Headlines
+author: glance-led-dev
+description: "The latest headline from any RSS or Atom feed, one per page."
+category: News
+entry: app.star
+
+width: 64
+height: 32
+refresh: 900
+
+pages: [one, two, three]
+
+assets:
+  - NEWS.png
+
+inputs:
+  - key: url
+    type: string
+    app_input_type: free-text
+    label: Feed URL
+    default: "https://feeds.npr.org/1001/rss.xml"
+    help: Any RSS or Atom feed.
+  - key: label
+    type: string
+    app_input_type: free-text
+    label: Source name
+    default: "NPR"
+    help: Shown on the banner.
