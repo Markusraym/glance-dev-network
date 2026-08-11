@@ -1,0 +1,31 @@
+gdn: 1
+id: park-alerts-scroll
+version: 0.1.0
+name: Park Alerts (Scroll)
+author: glance-led-dev
+description: "Closures, warnings and conditions for any US National Park."
+category: Other
+entry: app.star
+
+width: 192
+height: 32
+refresh: 3600
+
+pages: [alerts]
+
+assets:
+  - PINES.png
+
+inputs:
+  - key: park
+    type: choice
+    app_input_type: dropdown
+    label: Park
+    default: "YOSEMITE"
+    choices: ["ACADIA", "ARCHES", "BADLANDS", "BIG BEND", "BISCAYNE", "BLACK CANYON OF THE GUNNISON", "BRYCE CANYON", "CANYONLANDS", "CAPITOL REEF", "CARLSBAD CAVERNS", "CHANNEL ISLANDS", "CONGAREE", "CRATER LAKE", "CUYAHOGA VALLEY", "DEATH VALLEY", "DENALI", "DRY TORTUGAS", "EVERGLADES", "GATES OF THE ARCTIC", "GATEWAY ARCH", "GLACIER", "GLACIER BAY", "GRAND CANYON", "GRAND TETON", "GREAT BASIN", "GREAT SAND DUNES", "GREAT SMOKY MOUNTAINS", "GUADALUPE MOUNTAINS", "HALEAKALĀ", "HAWAIʻI VOLCANOES", "HOT SPRINGS", "INDIANA DUNES", "ISLE ROYALE", "JOSHUA TREE", "KATMAI", "KENAI FJORDS", "KOBUK VALLEY", "LAKE CLARK", "LASSEN VOLCANIC", "MAMMOTH CAVE", "MESA VERDE", "MOUNT RAINIER", "NEW RIVER GORGE", "NORTH CASCADES", "OLYMPIC", "PETRIFIED FOREST", "PINNACLES", "ROCKY MOUNTAIN", "SAGUARO", "SEQUOIA & KINGS CANYON", "SHENANDOAH", "THEODORE ROOSEVELT", "VIRGIN ISLANDS", "VOYAGEURS", "WHITE SANDS", "WIND CAVE", "WRANGELL - ST ELIAS", "YELLOWSTONE", "YOSEMITE", "ZION"]
+  - key: apikey
+    type: string
+    app_input_type: free-text
+    label: NPS API key
+    default: "DEMO_KEY"
+    help: DEMO_KEY works; free key at nps.gov/subjects/developer.
