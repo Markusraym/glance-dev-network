@@ -1,0 +1,21 @@
+gdn: 1
+id: steam-players
+version: 0.1.0
+name: Steam Players
+author: reyos86
+description: Live Steam player counts for a favorites list of games — name + how many are playing now.
+category: Games
+entry: app.star
+width: 192
+height: 32
+# Player counts move; refresh every 5 minutes. HTTP TTL caches shorter fetches.
+refresh: 300
+pages: [g1, g2, g3, g4]
+
+inputs:
+  - key: favorites
+    type: string
+    app_input_type: free-text
+    label: Favorites
+    default: "730,570,1245620,252490"
+    help: Comma-separated Steam AppIDs or short names (CS2, DOTA2, TF2, GTA5, ELDEN, RUST, PUBG, APEX, VALHEIM, HELLDIVERS). Find AppIDs in the store URL (store.steampowered.com/app/730/…). Up to 4 games get pages.
