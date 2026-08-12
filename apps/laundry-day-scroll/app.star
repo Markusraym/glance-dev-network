@@ -121,13 +121,20 @@ def verdict(c, ctx):
     c.image("LAUNDRY.png", 2, 2, w = n, h = n)
 
     if c.width >= 128:
-        c.text_fit(line, 30, 5, ["16x20", "10x16", "6x8"], color = col,
-                   maxw = c.width - 70)
-        c.text(note, c.width - 6, 6, font = "6x8", color = "#B0BCD4",
-               align = "right")
+        # Three stacked rows to the right of the icon: 0-15 verdict, 17-23
+        # note, 25-31 detail, with a blank row between each. 16+7+7 is 30 of
+        # the 32 rows, so those two spare pixels are the whole gap budget --
+        # butting the rows together leaves the 5x7 lines looking merged.
+        #
+        # The verdict used to be left-aligned with maxw = width-70 (reaching
+        # x=152) while the note was right-aligned with no limit at all
+        # (starting at x=95 for "SLOW BUT FINE"), so the two drew straight
+        # through each other. Every row is left-aligned at x=30 now, which
+        # also means no pair can collide as the strings change.
+        c.text(line, 30, 0, font = "10x16", color = col)
+        c.text(note, 30, 17, font = "5x7", color = "#B0BCD4")
         c.text("DRYING " + str(int(et * 10) / 10.0) + "MM   WIND "
-               + str(int(wind)), c.width - 6, 24, font = "5x7",
-               color = "#78849C", align = "right")
+               + str(int(wind)), 30, 25, font = "5x7", color = "#78849C")
     else:
         c.text_fit(line, c.width - 2, 8, ["10x16", "6x8", "5x7"], color = col,
                    align = "right", maxw = c.width - 20)
