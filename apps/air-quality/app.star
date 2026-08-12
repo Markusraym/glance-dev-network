@@ -121,15 +121,31 @@ def aqi(c, ctx):
     n = 24 if c.width >= 128 else 16
     c.image("SKYLINE.png", 2, c.height - n + 4, w = n, h = n)
 
+    city = g[2]
+
     if c.width >= 128:
-        c.text("US AQI", 30, 2, font = "4x5", color = "#7C8496")
+        # Band label drops from y=4 to y=6 so rows 0-5 are clear right across
+        # the panel; that frees a full-width header, where "US AQI" can keep
+        # saying what the number is AND name the place it came from. 4x5 is the
+        # smallest font usable here -- 3x4 has no space glyph, so multi-word
+        # names run together in it.
+        head = "US AQI"
+        if city != "":
+            head = head + " IN " + city
+        hf = _fit_clip(c, head, ["4x5"], c.width - 36)
+        c.text(hf[1], 30, 0, font = hf[0], color = "#7C8496")
         c.text(str(v), 30, 8, font = "16x20", color = b[2])
-        c.text_fit(b[1], c.width - 6, 4, ["10x16", "6x8", "5x7"], color = b[2],
+        c.text_fit(b[1], c.width - 6, 6, ["10x16", "6x8", "5x7"], color = b[2],
                    align = "right", maxw = c.width - 96)
         c.text("PM2.5 " + str(int(pm * 10) / 10.0), c.width - 6, 23,
                font = "5x7", color = "#96A0B4", align = "right")
     else:
-        c.text_fit(str(v), c.width - 2, 3, ["16x20", "10x16"], color = b[2],
+        # city 0-4, AQI 6-25, band word 27-31: no row is shared.
+        if city != "":
+            cf = _fit_clip(c, city, ["4x5", "3x4"], c.width - 2)
+            c.text(cf[1], c.width // 2, 0, font = cf[0], color = "#7C8496",
+                   align = "center")
+        c.text_fit(str(v), c.width - 2, 6, ["16x20", "10x16"], color = b[2],
                    align = "right", maxw = c.width - 20)
-        c.text_fit(b[1], c.width - 2, 25, ["4x5", "3x4"], color = b[2],
+        c.text_fit(b[1], c.width - 2, 27, ["4x5", "3x4"], color = b[2],
                    align = "right", maxw = c.width - 4)
