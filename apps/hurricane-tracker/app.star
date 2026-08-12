@@ -132,10 +132,20 @@ def storms(c, ctx):
     c.image("HURRICANE.png", 1, (c.height - sz) // 2, w = sz, h = sz)
 
     if c.width >= 128:
-        c.text_fit(name, 28, 2, ["10x16", "6x8", "5x7"], color = "#FFFFFF",
-                   maxw = c.width - 100)
-        c.text(cat[0], c.width - 6, 3, font = "10x16", color = cat[1],
+        # The category is drawn first so the name can be given whatever room is
+        # actually left. Before, the name was allowed to reach x=120 (maxw =
+        # width - 100) while the category was right-aligned with no limit at
+        # all: "TROP STORM" is 107px at 10x16, so it started at x=79 and the
+        # two drew through each other for 41px. "CAT 5" is only 53px, which is
+        # why the overlap showed up on tropical storms and not on hurricanes.
+        #
+        # Capping the category at 72px keeps "CAT n" big and drops the two long
+        # spelled-out labels to 6x8, which buys the name back ~38px.
+        cf = _fit_clip(c, cat[0], ["10x16", "6x8"], 72)
+        c.text(cf[1], c.width - 6, 3, font = cf[0], color = cat[1],
                align = "right")
+        c.text_fit(name, 28, 2, ["10x16", "6x8", "5x7"], color = "#FFFFFF",
+                   maxw = c.width - 42 - c.text_width(cf[1], cf[0]))
         c.text(str(mph) + " MPH   " + basin, c.width - 6, 22, font = "6x8",
                color = "#E8A8B8", align = "right")
         if n > 1:
