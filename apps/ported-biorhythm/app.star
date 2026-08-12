@@ -22,11 +22,50 @@ def date_diff(d1, m1, y1, d2, m2, y2):
     x2 = 365 * y2 + y2 / 4 - y2 / 100 + y2 / 400 + (m2 * 306 + 5) / 10 + (d2 - 1)
     return x2 - x1
 
+DEFAULT_BDAY = [1990, 6, 15]
+
+def _digits(s):
+    out = ""
+    for i in range(len(s)):
+        ch = s[i]
+        if ch >= "0" and ch <= "9":
+            out = out + ch
+    return out
+
+def parse_bday(ctx):
+    """Read the birthdate without trusting its shape.
+
+    It was read as dt[0:4] / dt[5:7] / dt[8:10], which assumes exactly
+    "YYYY-MM-DD" and nothing else. Two ways that bites:
+
+      - Hyphens are render-descriptor delimiters (key-value_key-value), so a
+        value carrying them is fragile in transit. Arriving as "19900615"
+        makes dt[8:10] the empty string, and int("") is a hard error -- the
+        panel goes blank rather than showing a wrong date.
+      - An unset input can come back as None, which subscripts straight into
+        an error too.
+
+    Reducing to digits accepts either spelling, and anything short or
+    implausible falls back to the default instead of taking the panel down.
+    """
+    v = ctx.inputs.get("bday", "")
+    if v == None:
+        v = ""
+    ds = _digits(str(v))
+    if len(ds) < 8:
+        return DEFAULT_BDAY
+    y = int(ds[0:4])
+    m = int(ds[4:6])
+    d = int(ds[6:8])
+    if y < 1900 or m < 1 or m > 12 or d < 1 or d > 31:
+        return DEFAULT_BDAY
+    return [y, m, d]
+
 def main(c, ctx):
-    dt = ctx.inputs.get("bday", "1990-06-15")
-    by = int(dt[0:4])
-    bm = int(dt[5:7])
-    bd = int(dt[8:10])
+    b = parse_bday(ctx)
+    by = b[0]
+    bm = b[1]
+    bd = b[2]
     n = ctx.now
     dD = date_diff(bd, bm, by, n.day, n.month, n.year)
 
