@@ -110,8 +110,79 @@ HEX = {"RED": "#FF4B4B", "ORANGE": "#FF9A3A", "YELLOW": "#F5D64E",
        "PURPLE": "#B46BE8", "BEIGE": "#D8C8A0"}
 
 
+STATIONS = {
+    "12TH ST OAKLAND CITY CENTER": "12TH",
+    "16TH ST MISSION": "16TH",
+    "19TH ST OAKLAND": "19TH",
+    "24TH ST MISSION": "24TH",
+    "ANTIOCH": "ANTC",
+    "ASHBY": "ASHB",
+    "BALBOA PARK": "BALB",
+    "BAY FAIR": "BAYF",
+    "BERRYESSA NORTH SAN JOSE": "BERY",
+    "CASTRO VALLEY": "CAST",
+    "CIVIC CENTER UN PLAZA": "CIVC",
+    "COLISEUM": "COLS",
+    "COLMA": "COLM",
+    "CONCORD": "CONC",
+    "DALY CITY": "DALY",
+    "DOWNTOWN BERKELEY": "DBRK",
+    "DUBLIN PLEASANTON": "DUBL",
+    "EL CERRITO DEL NORTE": "DELN",
+    "EL CERRITO PLAZA": "PLZA",
+    "EMBARCADERO": "EMBR",
+    "FREMONT": "FRMT",
+    "FRUITVALE": "FTVL",
+    "GLEN PARK": "GLEN",
+    "HAYWARD": "HAYW",
+    "LAFAYETTE": "LAFY",
+    "LAKE MERRITT": "LAKE",
+    "MACARTHUR": "MCAR",
+    "MILLBRAE": "MLBR",
+    "MILPITAS": "MLPT",
+    "MONTGOMERY ST": "MONT",
+    "NORTH BERKELEY": "NBRK",
+    "NORTH CONCORD MARTINEZ": "NCON",
+    "OAKLAND AIRPORT": "OAKL",
+    "ORINDA": "ORIN",
+    "PITTSBURG BAY POINT": "PITT",
+    "PITTSBURG CENTER": "PCTR",
+    "PLEASANT HILL": "PHIL",
+    "POWELL ST": "POWL",
+    "RICHMOND": "RICH",
+    "ROCKRIDGE": "ROCK",
+    "SAN BRUNO": "SBRN",
+    "SAN LEANDRO": "SANL",
+    "SFO AIRPORT": "SFIA",
+    "SOUTH HAYWARD": "SHAY",
+    "SOUTH SAN FRANCISCO": "SSAN",
+    "UNION CITY": "UCTY",
+    "WALNUT CREEK": "WCRK",
+    "WARM SPRINGS SOUTH FREMONT": "WARM",
+    "WEST DUBLIN PLEASANTON": "WDUB",
+    "WEST OAKLAND": "WOAK",
+}
+
+
+def resolve_station(ctx):
+    """BART station code for the picked stop.
+
+    The setting used to be the four-letter code itself, typed from memory or
+    looked up on bart.gov. The dropdown carries station names and this maps
+    them to codes; the names and codes both come from BART's own stn.aspx
+    station list.
+
+    Anything that is not a known name falls through unchanged, so a code saved
+    under the old free-text field still works.
+    """
+    v = str(ctx.inputs.get("station", "")).strip().upper()
+    if v in STATIONS:
+        return STATIONS[v]
+    return v
+
+
 def departures(c, ctx):
-    st = str(ctx.inputs.get("station", "")).strip().upper()
+    st = resolve_station(ctx)
     key = str(ctx.inputs.get("apikey", "")).strip()
     if st == "" or key == "":
         nodata(c, "NOT CONFIGURED", "SET A STATION")
