@@ -93,8 +93,63 @@ HOLIDAYS = [
 ]
 
 
+def civil_from_days(z):
+    """Days since the Unix epoch -> (year, month, day)."""
+    z = z + 719468
+    era = (z if z >= 0 else z - 146096) // 146097
+    doe = z - era * 146097
+    yoe = (doe - doe // 1460 + doe // 36524 - doe // 146096) // 365
+    y = yoe + era * 400
+    doy = doe - (365 * yoe + yoe // 4 - yoe // 100)
+    mp = (5 * doy + 2) // 153
+    d = doy - (153 * mp + 2) // 5 + 1
+    m = mp + 3 if mp < 10 else mp - 9
+    if m <= 2:
+        y = y + 1
+    return y, m, d
+
+
+def nth_sunday(y, month, nth):
+    fd = (days_from_civil(y, month, 1) + 4) % 7
+    first_sun = 1 + ((7 - fd) % 7)
+    return first_sun + (nth - 1) * 7
+
+
+def is_dst(y, mo, d, h):
+    # US rule: second Sunday in March to first Sunday in November.
+    start = nth_sunday(y, 3, 2)
+    end = nth_sunday(y, 11, 1)
+    if mo < 3 or mo > 11:
+        return False
+    if mo > 3 and mo < 11:
+        return True
+    if mo == 3:
+        if d > start:
+            return True
+        if d < start:
+            return False
+        return h >= 2
+    if d < end:
+        return True
+    if d > end:
+        return False
+    return h < 2
+
+
+def eastern_offset(ctx):
+    """The NYSE trades on US Eastern, so the offset was never a question worth
+    asking: it is -5, plus an hour while daylight saving is in effect. This
+    app already hardcodes the 9:30-16:00 session and the holiday calendar --
+    asking the viewer to supply the offset, and to remember to change it every
+    March and November, made a self-contained app depend on homework."""
+    u = ctx.now.unix
+    usecs = u % 86400
+    uy, umo, ud = civil_from_days((u - usecs) // 86400)
+    return -5 + (1 if is_dst(uy, umo, ud, usecs // 3600) else 0)
+
+
 def bell(c, ctx):
-    off = float(ctx.inputs.get("utcoffset", -4) or -4)
+    off = eastern_offset(ctx)
     shifted = ctx.now.unix + int(off * 3600)
     days = shifted // 86400
     mins = (shifted % 86400) // 60
