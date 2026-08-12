@@ -103,8 +103,76 @@ def fitwords(c, text, font, maxw):
     return ""
 
 
+TRAINS = {
+    "ADIRONDACK 68": "68",
+    "ADIRONDACK 69": "69",
+    "AUTO TRAIN 52": "52",
+    "AUTO TRAIN 53": "53",
+    "CALIFORNIA ZEPHYR 5": "5",
+    "CALIFORNIA ZEPHYR 6": "6",
+    "CARDINAL 50": "50",
+    "CARDINAL 51": "51",
+    "CAROLINIAN 79": "79",
+    "CAROLINIAN 80": "80",
+    "CITY OF NEW ORLEANS 58": "58",
+    "CITY OF NEW ORLEANS 59": "59",
+    "COAST STARLIGHT 11": "11",
+    "COAST STARLIGHT 14": "14",
+    "CRESCENT 19": "19",
+    "CRESCENT 20": "20",
+    "EMPIRE BUILDER 7": "7",
+    "EMPIRE BUILDER 8": "8",
+    "FLORIDIAN 40": "40",
+    "FLORIDIAN 41": "41",
+    "HEARTLAND FLYER 821": "821",
+    "HEARTLAND FLYER 822": "822",
+    "LAKE SHORE LIMITED 48": "48",
+    "LAKE SHORE LIMITED 49": "49",
+    "MAPLE LEAF 63": "63",
+    "MAPLE LEAF 64": "64",
+    "NORTHEAST REGIONAL 173": "173",
+    "NORTHEAST REGIONAL 66": "66",
+    "NORTHEAST REGIONAL 67": "67",
+    "NORTHEAST REGIONAL 85": "85",
+    "NORTHEAST REGIONAL 93": "93",
+    "NORTHEAST REGIONAL 94": "94",
+    "PALMETTO 89": "89",
+    "PALMETTO 90": "90",
+    "PENNSYLVANIAN 42": "42",
+    "PENNSYLVANIAN 43": "43",
+    "SILVER METEOR 97": "97",
+    "SILVER METEOR 98": "98",
+    "SOUTHWEST CHIEF 3": "3",
+    "SOUTHWEST CHIEF 4": "4",
+    "SUNSET LIMITED 1": "1",
+    "SUNSET LIMITED 2": "2",
+    "TEXAS EAGLE 21": "21",
+    "TEXAS EAGLE 22": "22",
+    "VERMONTER 55": "55",
+    "VERMONTER 56": "56",
+}
+
+
+def resolve_train(ctx):
+    """Train number for the picked service.
+
+    The setting used to be the bare number, which meant knowing that the
+    California Zephyr is 5 westbound and 6 eastbound before you could watch
+    it. The dropdown carries "ROUTE NUMBER" labels and this maps them back.
+
+    The number is what the feed is keyed on, so resolving here means both the
+    request path and the response lookup use it. Anything that is not a known
+    label falls through unchanged, so a number saved under the old free-text
+    field still works.
+    """
+    v = str(ctx.inputs.get("number", "")).strip().upper()
+    if v in TRAINS:
+        return TRAINS[v]
+    return v
+
+
 def train(c, ctx):
-    num = str(ctx.inputs.get("number", "")).strip()
+    num = resolve_train(ctx)
     if num == "":
         nodata(c, "NO TRAIN", "SET A NUMBER")
         return
