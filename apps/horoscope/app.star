@@ -1,10 +1,13 @@
-# Horoscope — one-frame daily vibe for a configured zodiac sign (192x32).
+# Horoscope — daily vibe for one or more configured zodiac signs (192x32).
 #
 # Data: Free Horoscope API (https://freehoroscopeapi.com/) daily endpoint.
 # No API key. GDN http.get is server-side. A User-Agent is required.
 #
-# Glance rotates apps ~every 3s, so this is a punchline frame — glyph + sign
-# + TODAY + a short finished sentence from the daily reading (fits on-panel).
+# Settings are four phone-friendly dropdowns (Sign 1–4; extras default to none).
+# One page only — if you pick just Sign 1 you never sit through empty/duplicate
+# frames. With multiple signs, the panel rotates which one is shown on each
+# refresh (GDN page lists are fixed at publish time, so this avoids forcing
+# four playlist slots on single-sign installs).
 #
 # Bitmap fonts are UPPERCASE ONLY. Glyph art: assets/{sign}.png.
 
@@ -34,20 +37,55 @@ BODY_Y = 10
 MAX_LINES = 3
 # Leave 1px clear of the bottom edge so glyphs never bleed under the frame.
 PANEL_BOTTOM = 31
+# Seconds per sign when multiple are configured (matches manifest refresh).
+ROTATE_EVERY = 120
 
 
-def safe_input(ctx, key, default):
-    value = ctx.inputs.get(key, default)
-    if value == None or value == "":
-        return default
-    return value
-
-
-def resolve_sign(raw):
+def resolve_slot(raw):
     key = str(raw).upper().strip()
+    if key == "" or key == "NONE" or key == "-" or key == "OFF":
+        return None
     if key in SIGNS:
         return key
-    return "ARIES"
+    return None
+
+
+def signs_list(ctx):
+    out = []
+    seen = {}
+    # Preferred: four phone-friendly dropdowns.
+    for key in ["sign1", "sign2", "sign3", "sign4"]:
+        slot = resolve_slot(ctx.inputs.get(key, "none" if key != "sign1" else "aries"))
+        if slot == None:
+            continue
+        if slot in seen:
+            continue
+        seen[slot] = True
+        out.append(slot)
+
+    # Legacy multi-select / single dropdown from earlier builds.
+    if len(out) == 0:
+        legacy = ctx.inputs.get("signs", None)
+        if legacy == None:
+            legacy = ctx.inputs.get("zodiacsign", "aries")
+        for part in str(legacy).split(","):
+            slot = resolve_slot(part)
+            if slot == None or slot in seen:
+                continue
+            seen[slot] = True
+            out.append(slot)
+
+    if len(out) == 0:
+        out.append("ARIES")
+    return out
+
+
+def active_slot(ctx, picks):
+    total = len(picks)
+    if total <= 1:
+        return 0
+    # Rotate on a fixed wall-clock cadence so each refresh can advance the sign.
+    return (ctx.now.unix // ROTATE_EVERY) % total
 
 
 def tighten(text, name):
@@ -246,17 +284,24 @@ def draw_mark(c, sign_id, color):
         c.image("pisces.png", x, y, w = 22, h = 22)
 
 
-def draw_error(c, name, color, title, sub):
+def draw_error(c, name, color, title, sub, slot, total, sign_id):
     c.fill("black")
-    c.text(name, 2, 1, font = "6x8", color = color)
-    c.text("TODAY", c.width - 2, 2, font = "4x5", color = "#8B9BB0", align = "right")
-    c.line(0, 8, c.width - 1, 8, "#2A3544")
-    c.text(title, c.width // 2, 14, font = "6x8", color = "white", align = "center")
-    c.text(sub, c.width // 2, 24, font = "5x7", color = "#FF6B7A", align = "center")
+    draw_mark(c, sign_id, color)
+    c.text(name, 27, 1, font = "6x8", color = "white")
+    right = "TODAY"
+    if total > 1:
+        right = "#" + str(slot + 1) + "/" + str(total)
+    c.text(right, c.width - 2, 2, font = "4x5", color = "#8B9BB0", align = "right")
+    c.line(27, 9, c.width - 1, 9, "#2A3544")
+    c.text(title, 27, 14, font = "5x7", color = "white")
+    c.text(sub, 27, 24, font = "4x5", color = "#FF6B7A")
 
 
 def main(c, ctx):
-    sign_key = resolve_sign(safe_input(ctx, "zodiacsign", "aries"))
+    picks = signs_list(ctx)
+    total = len(picks)
+    slot = active_slot(ctx, picks)
+    sign_key = picks[slot]
     meta = SIGNS[sign_key]
     name = meta[0]
     color = meta[1]
@@ -264,13 +309,16 @@ def main(c, ctx):
 
     result = fetch_daily(sign_id)
     if not result["ok"]:
-        draw_error(c, name, color, result["title"], result["sub"])
+        draw_error(c, name, color, result["title"], result["sub"], slot, total, sign_id)
         return
 
     c.fill("black")
     draw_mark(c, sign_id, color)
     c.text(name, 27, 1, font = "6x8", color = "white")
-    c.text("TODAY", c.width - 2, 2, font = "4x5", color = color, align = "right")
+    right = "TODAY"
+    if total > 1:
+        right = "#" + str(slot + 1) + "/" + str(total)
+    c.text(right, c.width - 2, 2, font = "4x5", color = color, align = "right")
     c.line(27, 9, c.width - 1, 9, "#2A3544")
 
     fitted = punchline(c, result["text"], name, c.width - 29)

@@ -1,25 +1,49 @@
 gdn: 1
 id: horoscope
-version: 0.1.0
+version: 0.3.0
 name: Horoscope
 author: reyos86
-description: Daily zodiac vibe for your sign — glyph plus a short punchline on the Scroll.
+description: Daily zodiac vibes for the signs you pick — glyph plus a short punchline on the Scroll.
 category: Lifestyle
 entry: app.star
 width: 192
 height: 32
-# Daily content; refresh hourly. http.get TTL caches longer so the API is not hammered.
-refresh: 3600
+# Re-render often enough to rotate through multiple signs; API TTL still caches readings.
+refresh: 120
 pages: [main]
 
 inputs:
-  - key: zodiacsign
+  - key: sign1
     type: choice
     app_input_type: dropdown
-    label: Zodiac sign
+    label: Sign 1
     default: aries
     choices: [aries, taurus, gemini, cancer, leo, virgo, libra, scorpio, sagittarius, capricorn, aquarius, pisces]
-    help: Which zodiac sign to display.
+    help: First (or only) sign to show. Tap to pick — works fine on phones.
+
+  - key: sign2
+    type: choice
+    app_input_type: dropdown
+    label: Sign 2
+    default: none
+    choices: [none, aries, taurus, gemini, cancer, leo, virgo, libra, scorpio, sagittarius, capricorn, aquarius, pisces]
+    help: Optional second sign. Leave as none to show only Sign 1.
+
+  - key: sign3
+    type: choice
+    app_input_type: dropdown
+    label: Sign 3
+    default: none
+    choices: [none, aries, taurus, gemini, cancer, leo, virgo, libra, scorpio, sagittarius, capricorn, aquarius, pisces]
+    help: Optional third sign. Leave as none if unused.
+
+  - key: sign4
+    type: choice
+    app_input_type: dropdown
+    label: Sign 4
+    default: none
+    choices: [none, aries, taurus, gemini, cancer, leo, virgo, libra, scorpio, sagittarius, capricorn, aquarius, pisces]
+    help: Optional fourth sign. Leave as none if unused.
 
 assets:
   - aries.png
