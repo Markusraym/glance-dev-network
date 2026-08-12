@@ -94,10 +94,95 @@ def clip(c, text, font, maxw):
     return ""
 
 
+STATIONS = {
+    "SAN DIEGO CA": "9410170",
+    "LA JOLLA CA": "9410230",
+    "LOS ANGELES CA": "9410660",
+    "SANTA MONICA CA": "9410840",
+    "SANTA BARBARA CA": "9411340",
+    "MONTEREY CA": "9413450",
+    "SAN FRANCISCO CA": "9414290",
+    "POINT REYES CA": "9415020",
+    "CRESCENT CITY CA": "9419750",
+    "PORT ORFORD OR": "9431647",
+    "ASTORIA OR": "9439040",
+    "TOKE POINT WA": "9440910",
+    "SEATTLE WA": "9447130",
+    "PORT ANGELES WA": "9444090",
+    "FRIDAY HARBOR WA": "9449880",
+    "KETCHIKAN AK": "9450460",
+    "JUNEAU AK": "9452210",
+    "ANCHORAGE AK": "9455920",
+    "KODIAK AK": "9457292",
+    "HONOLULU HI": "1612340",
+    "HILO HI": "1617760",
+    "KAHULUI HI": "1615680",
+    "NAWILIWILI HI": "1611400",
+    "PORT ISABEL TX": "8779770",
+    "CORPUS CHRISTI TX": "8775870",
+    "GALVESTON TX": "8771450",
+    "GRAND ISLE LA": "8761724",
+    "PENSACOLA FL": "8729840",
+    "PANAMA CITY FL": "8729108",
+    "CEDAR KEY FL": "8727520",
+    "ST PETERSBURG FL": "8726520",
+    "NAPLES FL": "8725110",
+    "KEY WEST FL": "8724580",
+    "MIAMI FL": "8723214",
+    "LAKE WORTH FL": "8722670",
+    "CAPE CANAVERAL FL": "8721604",
+    "MAYPORT FL": "8720218",
+    "FERNANDINA FL": "8720030",
+    "FORT PULASKI GA": "8670870",
+    "CHARLESTON SC": "8665530",
+    "MYRTLE BEACH SC": "8661070",
+    "WILMINGTON NC": "8658120",
+    "BEAUFORT NC": "8656483",
+    "DUCK NC": "8651370",
+    "SEWELLS POINT VA": "8638610",
+    "ANNAPOLIS MD": "8575512",
+    "BALTIMORE MD": "8574680",
+    "OCEAN CITY MD": "8570283",
+    "WASHINGTON DC": "8594900",
+    "LEWES DE": "8557380",
+    "ATLANTIC CITY NJ": "8534720",
+    "CAPE MAY NJ": "8536110",
+    "SANDY HOOK NJ": "8531680",
+    "THE BATTERY NY": "8518750",
+    "MONTAUK NY": "8510560",
+    "KINGS POINT NY": "8516945",
+    "NEW LONDON CT": "8461490",
+    "BRIDGEPORT CT": "8467150",
+    "NEWPORT RI": "8452660",
+    "PROVIDENCE RI": "8454000",
+    "BOSTON MA": "8443970",
+    "NANTUCKET MA": "8449130",
+    "PORTLAND ME": "8418150",
+    "BAR HARBOR ME": "8413320",
+    "EASTPORT ME": "8410140",
+}
+
+
+def resolve_station(ctx):
+    """Station id for the picked place.
+
+    The setting used to be a raw NOAA id typed by hand, with the help text
+    pointing at tidesandcurrents.noaa.gov to go and look one up. The dropdown
+    carries place names instead and this maps them to ids.
+
+    Anything that is not a known label falls through unchanged, so an id saved
+    under the old free-text field still works.
+    """
+    v = str(ctx.inputs.get("station", "")).strip().upper()
+    if v in STATIONS:
+        return STATIONS[v]
+    return v
+
+
 def tides(c, ctx):
-    station = str(ctx.inputs.get("station", "")).strip()
+    station = resolve_station(ctx)
     if station == "":
-        nodata(c, "NO STATION", "SET A STATION ID")
+        nodata(c, "NO STATION", "PICK A LOCATION")
         return
 
     r = http.get("https://api.tidesandcurrents.noaa.gov/api/prod/datagetter",
