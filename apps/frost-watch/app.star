@@ -26,6 +26,33 @@ def geo(ctx):
 NODATA_FONTS = ["10x16", "6x8", "5x7", "4x5"]
 
 
+def degree_mark(c, x, y, color):
+    """Draw the degree ring. None of the bitmap fonts carry a U+00B0 glyph, so
+    a literal "°" in a string measures 0px wide and draws nothing at all --
+    the temperature silently rendered as a bare number. Radius 1 gives the 3x3
+    ring that reads as a degree at LED scale."""
+    c.circle(x + 1, y + 1, 1, color)
+
+
+def temp_group_width(c, s, font, unit):
+    w = c.text_width(s, font) + 4
+    if unit != "":
+        w = w + 2 + c.text_width(unit, "5x7")
+    return w
+
+
+def draw_temp(c, x, y, s, font, color, unit):
+    """Temperature + degree ring, drawn left-to-right from x. `unit` adds the
+    F/C letter after the ring; pass "" on narrow panels, where the ring alone
+    keeps the number in the big font. Returns the width drawn."""
+    w = c.text_width(s, font)
+    c.text(s, x, y, font = font, color = color)
+    degree_mark(c, x + w + 1, y + 1, color)
+    if unit != "":
+        c.text(unit, x + w + 6, y + 1, font = "5x7", color = color)
+    return temp_group_width(c, s, font, unit)
+
+
 def _fit_clip(c, text, fonts, maxw):
     """[font, text] for the largest font that fits, clipping if none do.
 
@@ -117,15 +144,34 @@ def tonight(c, ctx):
     n = 24 if c.width >= 128 else 16
     c.image("FROST.png", 2, (c.height - n) // 2, w = n, h = n)
 
+    unit = "C" if metric else "F"
+    city = g[2]
+
     if c.width >= 128:
-        c.text("TONIGHT LOW", 30, 2, font = "4x5", color = "#5E7290")
-        c.text(shown + "\u00B0", 30, 8, font = "16x20", color = b[1])
-        c.text(b[0], c.width - 6, 4, font = "10x16", color = b[1],
+        # Header row has to be 4x5: the 3x4 font has no space glyph at all, so
+        # "TONIGHT LOW IN SAN FRANCISCO" renders as one run-on word in it.
+        # 4x5 needs rows 0-5, which the band word at 10x16 was eating into --
+        # "HARD FREEZE" is 117px and reached back to x=69. At 8x12 it stops at
+        # x=98 and still reads as the headline, which buys the header its row.
+        c.text(b[0], c.width - 6, 4, font = "8x12", color = b[1],
                align = "right")
+        room = c.width - 6 - c.text_width(b[0], "8x12") - 34
+        head = city if city != "" else "TONIGHT LOW"
+        hf = _fit_clip(c, head, ["4x5"], room)
+        c.text(hf[1], 30, 0, font = hf[0], color = "#5E7290")
+        draw_temp(c, 30, 8, shown, "16x20", b[1], unit)
         c.text(b[2], c.width - 6, 23, font = "5x7", color = "#7C90AC",
                align = "right")
     else:
-        c.text_fit(shown + "\u00B0", c.width - 2, 2, ["16x20", "10x16"],
-                   color = b[1], align = "right", maxw = c.width - 20)
-        c.text_fit(b[0], c.width - 2, 25, ["4x5", "3x4"], color = b[1],
+        # city 0-4, temperature 6-25, band word 27-31: no row is shared.
+        if city != "":
+            cf = _fit_clip(c, city, ["4x5", "3x4"], c.width - 2)
+            c.text(cf[1], c.width // 2, 0, font = cf[0], color = "#5E7290",
+                   align = "center")
+        tfont = "16x20"
+        if temp_group_width(c, shown, tfont, "") > c.width - 22:
+            tfont = "10x16"
+        tw = temp_group_width(c, shown, tfont, "")
+        draw_temp(c, c.width - 2 - tw, 6, shown, tfont, b[1], "")
+        c.text_fit(b[0], c.width - 2, 27, ["4x5", "3x4"], color = b[1],
                    align = "right", maxw = c.width - 20)
