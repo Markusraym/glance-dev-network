@@ -3,24 +3,14 @@ id: go-oilers
 version: 0.1.0
 name: "GO OILERS"
 author: "Patricholas424"
-description: A new Glance app.
+description: Tulsa Oilers pride for your panel — both logos flanking a GO OILERS shout.
 category: Lifestyle
 entry: app.star
 width: 192
 height: 32
 refresh: 300
 pages: [main]
-inputs:
-  - key: setting1
-    type: string
-    app_input_type: free-text
-    label: "GO"
-    default: ""
-  - key: setting2
-    type: string
-    app_input_type: free-text
-    label: "OILERS"
-    default: ""
+inputs: []
 assets:
   - tulsa_oilers_ifl_logo-2.png
   - tulsa_oilers_ifl_logo.png
