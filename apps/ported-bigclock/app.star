@@ -8,7 +8,7 @@
 # `gdn translate` converted the schema (Location + toggles) and flagged
 # sunrise/time/re/base64/json/load() and the Row/Box/Image/Animation widgets.
 # Hand-finished for GDN (static 64x32): the base64 number images became a big
-# bitmap FONT; ctx.now is UTC so time is computed from a UTC-offset input; the
+# bitmap FONT; ctx.now is UTC so time is computed from a time-zone input; the
 # 12/24h + leading-zero LOGIC ports; the flashing separator is a static colon.
 #
 # The original's sunrise fade is restored here as a smooth interpolation across
@@ -17,6 +17,71 @@
 MONTHS = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN",
           "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"]
 DOW = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"]
+
+# ---------- time zone ----------
+# ctx.now is UTC. Each US zone is "UTC minus N hours", plus an hour while
+# daylight saving is in effect. Same table and DST rule as apps/us-sky-clock,
+# so the two apps always agree on the wall clock.
+# [base offset, observes DST]
+ZONES = {
+    "EASTERN": [-5, True],
+    "CENTRAL": [-6, True],
+    "MOUNTAIN": [-7, True],
+    "ARIZONA": [-7, False],
+    "PACIFIC": [-8, True],
+    "ALASKA": [-9, True],
+    "HAWAII": [-10, False],
+}
+
+def _days_from_civil(y, m, d):
+    yy = y - 1 if m <= 2 else y
+    era = (yy if yy >= 0 else yy - 399) // 400
+    yoe = yy - era * 400
+    mm = m + (-3 if m > 2 else 9)
+    doy = (153 * mm + 2) // 5 + d - 1
+    doe = yoe * 365 + yoe // 4 - yoe // 100 + doy
+    return era * 146097 + doe - 719468
+
+def _nth_sunday(y, month, nth):
+    fd = (_days_from_civil(y, month, 1) + 4) % 7
+    first_sun = 1 + ((7 - fd) % 7)
+    return first_sun + (nth - 1) * 7
+
+def _is_dst(y, mo, d, h):
+    # US rule: second Sunday in March to first Sunday in November.
+    start = _nth_sunday(y, 3, 2)
+    end = _nth_sunday(y, 11, 1)
+    if mo < 3 or mo > 11:
+        return False
+    if mo > 3 and mo < 11:
+        return True
+    if mo == 3:
+        if d > start:
+            return True
+        if d < start:
+            return False
+        return h >= 2
+    if d < end:
+        return True
+    if d > end:
+        return False
+    return h < 2
+
+def _zone_offset(ctx):
+    """Resolve the zone dropdown to a UTC offset in hours, DST included."""
+    zone = ctx.inputs.get("zone", "EASTERN")
+    if zone == None:
+        zone = "EASTERN"
+    zone = zone.upper()
+    if zone not in ZONES:
+        zone = "EASTERN"
+    base = ZONES[zone][0]
+    observes = ZONES[zone][1]
+    u = ctx.now.unix
+    usecs = u % 86400
+    uy, umo, ud = _civil_from_days((u - usecs) // 86400)
+    dst = observes and _is_dst(uy, umo, ud, usecs // 3600)
+    return base + (1 if dst else 0)
 
 # Keyframes across the 1440 minutes of a day: [minute, [r,g,b]].
 # Deep blue overnight, orange through both golden hours, warm white at noon.
@@ -84,9 +149,9 @@ def _civil_from_days(z):
     return y, m, d
 
 def main(c, ctx):
-    off = int(ctx.inputs.get("tz_offset", -5))
-    fmt = ctx.inputs.get("hour_format", "24")
-    lz = ctx.inputs.get("leading_zero", "no")
+    off = _zone_offset(ctx)
+    fmt = ctx.inputs.get("hourformat", "24")
+    lz = ctx.inputs.get("leadingzero", "no")
 
     local = ctx.now.unix + off * 3600
     secs = local % 86400
