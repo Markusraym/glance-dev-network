@@ -115,6 +115,10 @@ inputs:
 
   - key: maxwind
     type: number
-    label: "Maximum Wind Speed"
+    label: "Windiest You'd Go Topless"
     default: 15
-    help: "Maximum acceptable wind speed during your selected time period, in mph."
+    help: >-
+      If the wind gets above this, the app tells you to keep the top on.
+      Always in mph, even if you picked Celsius above. 15 is a good starting
+      point -- past about 20 mph an open cab gets buffety and loose papers
+      start leaving. Raise it if wind doesn't bother you, lower it if it does.
