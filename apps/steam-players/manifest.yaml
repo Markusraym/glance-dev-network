@@ -1,21 +1,42 @@
 gdn: 1
 id: steam-players
-version: 0.1.0
+version: 0.3.0
 name: Steam Players
 author: reyos86
-description: Live Steam player counts for a favorites list of games — name + how many are playing now.
+description: Live Steam player counts plus review %, price/F2P, genre, and year for AppIDs you type in.
 category: Games
 entry: app.star
 width: 192
 height: 32
-# Player counts move; refresh every 5 minutes. HTTP TTL caches shorter fetches.
-refresh: 300
-pages: [g1, g2, g3, g4]
+# Rotate multi-game picks on refresh; player/news TTL-cache separately.
+refresh: 120
+pages: [main]
 
 inputs:
-  - key: favorites
+  - key: game1
     type: string
     app_input_type: free-text
-    label: Favorites
-    default: "730,570,1245620,252490"
-    help: Comma-separated Steam AppIDs or short names (CS2, DOTA2, TF2, GTA5, ELDEN, RUST, PUBG, APEX, VALHEIM, HELLDIVERS). Find AppIDs in the store URL (store.steampowered.com/app/730/…). Up to 4 games get pages.
+    label: AppID 1
+    default: "730"
+    help: Steam AppID from the store URL (store.steampowered.com/app/730/…). Required for a single-game setup.
+
+  - key: game2
+    type: string
+    app_input_type: free-text
+    label: AppID 2
+    default: ""
+    help: Optional second AppID. Leave blank to show only AppID 1.
+
+  - key: game3
+    type: string
+    app_input_type: free-text
+    label: AppID 3
+    default: ""
+    help: Optional third AppID. Leave blank if unused.
+
+  - key: game4
+    type: string
+    app_input_type: free-text
+    label: AppID 4
+    default: ""
+    help: Optional fourth AppID. Leave blank if unused.
