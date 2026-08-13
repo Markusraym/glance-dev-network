@@ -1,0 +1,26 @@
+gdn: 1
+id: tide-chart
+version: 0.1.0
+name: Tide Chart
+author: reyos86
+description: Next high/low tides, today's schedule, live wind/water conditions, and NWS alerts for a NOAA marine station — by zip (nearest within 50 mi) or station ID. No API key required.
+category: Weather
+entry: app.star
+width: 192
+height: 32
+# Predictions are stable; refresh a few times an hour is plenty.
+refresh: 900
+pages: [tide, today, conditions]
+inputs:
+  - key: zip
+    type: string
+    app_input_type: free-text
+    label: Zip code
+    default: "92101"
+    help: Used only when Station ID is blank. Finds the nearest NOAA tide station within 50 miles.
+  - key: station
+    type: string
+    app_input_type: free-text
+    label: Station ID
+    default: ""
+    help: Optional NOAA station ID (e.g. 8467150). When set, zip is ignored. Find IDs at tidesandcurrents.noaa.gov.
