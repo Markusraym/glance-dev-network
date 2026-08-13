@@ -45,27 +45,61 @@ def fit_font(c, text, options, maxw):
             return f
     return options[len(options) - 1]
 
+def _digits(s):
+    out = ""
+    for i in range(len(s)):
+        ch = s[i]
+        if ch >= "0" and ch <= "9":
+            out = out + ch
+    return out
+
+
+def _target_date(ctx):
+    """[year, month, day] from the date setting, or None if unusable.
+
+    This used to be date.split("-") with all three parts required to be
+    numeric, which assumed the value arrives as exactly "YYYY-MM-DD". The
+    picker sends a full ISO stamp, and it does not survive the trip intact:
+
+      saved      date-2026-08-14T01:12:57.000Z
+      delivered  2026-08-14T01
+
+    The render descriptor is colon-separated at the top level
+    (GDN:W:H:app:pages:ttl:inputs), so the time's own colons end the value --
+    it is cut at the first one. "14T01" then failed _is_num() and the panel
+    showed SET DATE / YYYY-MM-DD, which reads as the date never having been
+    saved at all.
+
+    The day itself always survives that cut, since it sits before the "T", so
+    reducing to digits and taking the first eight recovers it. That also
+    accepts a plain "YYYY-MM-DD" unchanged.
+    """
+    ds = _digits(_s(ctx, "date", ""))
+    if len(ds) < 8:
+        return None
+    ty = int(ds[0:4])
+    tm = int(ds[4:6])
+    td = int(ds[6:8])
+    if tm < 1 or tm > 12 or td < 1 or td > mdays(ty, tm):
+        return None
+    return [ty, tm, td]
+
+
 def days(c, ctx):
     event = _s(ctx, "event", "EVENT").upper()
-    parts = _s(ctx, "date", "2027-01-01").split("-")
 
     c.fill("black")
     c.rect(0, 0, c.width - 1, 8, fill = "blue")
     c.text(event, c.width // 2, 1, font = fit_font(c, event, ["5x7", "4x5"], c.width - 4), color = "white", align = "center")
 
-    # Guard against anything that isn't YYYY-MM-DD so a stray input can't crash.
-    ok = len(parts) == 3 and _is_num(parts[0]) and _is_num(parts[1]) and _is_num(parts[2])
-    if ok:
-        ty = int(parts[0])
-        tm = int(parts[1])
-        td = int(parts[2])
-        # Also reject impossible dates, not just non-numeric ones.
-        ok = tm >= 1 and tm <= 12 and td >= 1 and td <= mdays(ty, tm)
-
-    if not ok:
+    target_ymd = _target_date(ctx)
+    if target_ymd == None:
         c.text("SET DATE", c.width // 2, 13, font = "6x8", color = "red", align = "center")
-        c.text("YYYY-MM-DD", c.width // 2, 24, font = "4x5", color = "gray", align = "center")
+        c.text("PICK A DAY", c.width // 2, 24, font = "4x5", color = "gray", align = "center")
         return
+    ty = target_ymd[0]
+    tm = target_ymd[1]
+    td = target_ymd[2]
 
     left = _days_from_civil(ty, tm, td) - _days_from_civil(ctx.now.year, ctx.now.month, ctx.now.day)
     target = MONTHS[tm - 1] + " " + str(td) + " " + str(ty)
