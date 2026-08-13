@@ -173,5 +173,11 @@ def tonight(c, ctx):
             tfont = "10x16"
         tw = temp_group_width(c, shown, tfont, "")
         draw_temp(c, c.width - 2 - tw, 6, shown, tfont, b[1], "")
-        c.text_fit(b[0], c.width - 2, 27, ["4x5", "3x4"], color = b[1],
-                   align = "right", maxw = c.width - 20)
+        # 4x5 only, and against the full width. 3x4 has no space glyph, so
+        # "HARD FREEZE" came out as "HARDFREEZE" -- and it was reaching that
+        # fallback needlessly: maxw was width-20, leaving 44px, but the 20px
+        # reserve is for the icon and the icon ends at row 23. Nothing else is
+        # on rows 27-31, so the band word can have the panel. At width-4 it
+        # gets 60px, and the longest word is 52px at 4x5.
+        c.text_fit(b[0], c.width - 2, 27, ["4x5"], color = b[1],
+                   align = "right", maxw = c.width - 4)
