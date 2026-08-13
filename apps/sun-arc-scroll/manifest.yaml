@@ -1,0 +1,24 @@
+gdn: 1
+id: sun-arc-scroll
+version: 0.1.0
+name: Sun Arc (Scroll)
+author: glance-led-dev
+description: The sun on its real arc over a sky that tracks its altitude, plus rise, set and today's change in daylight.
+category: Science
+entry: app.star
+
+width: 192
+height: 32
+refresh: 600
+
+pages: [arc, times]
+
+inputs:
+  - key: zip
+    type: string
+    app_input_type: free-text
+    label: Zip code
+    default: "10001"
+    help: >-
+      US zip code. Used to look up your timezone, daylight saving included,
+      so there is nothing to adjust twice a year.
