@@ -11,6 +11,18 @@ DOW = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"]
 MON = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN",
        "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"]
 
+# Same table and DST rule as apps/us-sky-clock, so every GDN clock agrees on
+# the wall time. [base offset, observes DST]
+ZONES = {
+    "EASTERN": [-5, True],
+    "CENTRAL": [-6, True],
+    "MOUNTAIN": [-7, True],
+    "ARIZONA": [-7, False],
+    "PACIFIC": [-8, True],
+    "ALASKA": [-9, True],
+    "HAWAII": [-10, False],
+}
+
 
 def is_leap(y):
     return (y % 4 == 0 and y % 100 != 0) or (y % 400 == 0)
@@ -27,32 +39,70 @@ def days_from_civil(y, m, d):
     return era * 146097 + doe - 719468
 
 
-def offset_hours(ctx):
-    """Real UTC offset for the configured zip, DST already applied.
+def civil_from_days(z):
+    """Days since the Unix epoch -> (year, month, day)."""
+    z = z + 719468
+    era = (z if z >= 0 else z - 146096) // 146097
+    doe = z - era * 146097
+    yoe = (doe - doe // 1460 + doe // 36524 - doe // 146096) // 365
+    y = yoe + era * 400
+    doy = doe - (365 * yoe + yoe // 4 - yoe // 100)
+    mp = (5 * doy + 2) // 153
+    d = doy - (153 * mp + 2) // 5 + 1
+    m = mp + 3 if mp < 10 else mp - 9
+    if m <= 2:
+        y = y + 1
+    return y, m, d
 
-    Two cached hops: zip -> lat/lon, then lat/lon -> offset. Any failure falls
-    back to UTC, so a dead API costs you the timezone, not the panel."""
-    zip = str(ctx.inputs.get("zip", "")).strip()
-    if zip == "":
-        return 0.0
-    g = http.get("https://api.zippopotam.us/us/" + zip, ttl_seconds = 86400)
-    if g["status_code"] != 200 or not g["json"]:
-        return 0.0
-    places = g["json"].get("places", [])
-    if not places:
-        return 0.0
-    t = http.get(
-        "https://timeapi.io/api/TimeZone/coordinate",
-        params = {"latitude": places[0]["latitude"],
-                  "longitude": places[0]["longitude"]},
-        ttl_seconds = 3600,
-    )
-    if t["status_code"] != 200 or not t["json"]:
-        return 0.0
-    secs = t["json"].get("currentUtcOffset", {}).get("seconds", None)
-    if secs == None:
-        return 0.0
-    return float(secs) / 3600.0
+
+def nth_sunday(y, month, nth):
+    fd = (days_from_civil(y, month, 1) + 4) % 7
+    first_sun = 1 + ((7 - fd) % 7)
+    return first_sun + (nth - 1) * 7
+
+
+def is_dst(y, mo, d, h):
+    # US rule: second Sunday in March to first Sunday in November.
+    start = nth_sunday(y, 3, 2)
+    end = nth_sunday(y, 11, 1)
+    if mo < 3 or mo > 11:
+        return False
+    if mo > 3 and mo < 11:
+        return True
+    if mo == 3:
+        if d > start:
+            return True
+        if d < start:
+            return False
+        return h >= 2
+    if d < end:
+        return True
+    if d > end:
+        return False
+    return h < 2
+
+
+def offset_hours(ctx):
+    """UTC offset for the configured zone, DST already applied.
+
+    This used to be two cached network hops -- zip -> lat/lon (zippopotam.us),
+    then lat/lon -> offset (timeapi.io) -- and every failure path returned 0.0,
+    so if either API was down or the zip was unknown the clock quietly showed
+    UTC. The zone dropdown resolves the offset locally: no network, no fallback
+    to the wrong time."""
+    zone = ctx.inputs.get("zone", "EASTERN")
+    if zone == None:
+        zone = "EASTERN"
+    zone = zone.upper()
+    if zone not in ZONES:
+        zone = "EASTERN"
+    base = ZONES[zone][0]
+    observes = ZONES[zone][1]
+    u = ctx.now.unix
+    usecs = u % 86400
+    uy, umo, ud = civil_from_days((u - usecs) // 86400)
+    dst = observes and is_dst(uy, umo, ud, usecs // 3600)
+    return float(base + (1 if dst else 0))
 
 
 def local(ctx):
