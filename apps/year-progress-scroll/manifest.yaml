@@ -1,0 +1,29 @@
+gdn: 1
+id: year-progress-scroll
+version: 0.1.0
+name: Year Progress (Scroll)
+author: glance-led-dev
+description: How much of the year, the month and the day are already gone — one page each.
+category: Time
+entry: app.star
+
+width: 192
+height: 32
+refresh: 900
+
+pages: [year, month, today]
+
+inputs:
+  - key: zip
+    type: string
+    app_input_type: free-text
+    label: Zip code
+    default: "10001"
+    help: >-
+      US zip code. Used to look up your timezone, daylight saving included,
+      so there is nothing to adjust twice a year.
+  - key: accent
+    type: string
+    app_input_type: color
+    label: Bar color
+    default: "#39D98A"
