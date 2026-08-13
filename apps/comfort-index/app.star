@@ -26,6 +26,34 @@ def geo(ctx):
 NODATA_FONTS = ["10x16", "6x8", "5x7", "4x5"]
 
 
+def degree_mark(c, x, y, color):
+    """Draw the degree ring. None of the bitmap fonts carry a U+00B0 glyph, so
+    a literal "°" in a string measures 0px wide and draws nothing at all --
+    the temperature silently rendered as a bare number. Radius 1 gives the 3x3
+    ring that reads as a degree at LED scale."""
+    c.circle(x + 1, y + 1, 1, color)
+
+
+def draw_temp(c, x, y, val, font, color, unit):
+    """Temperature + degree ring, drawn left-to-right from x. `unit` adds the
+    F/C letter after the ring; pass "" on narrow panels, where the ring alone
+    keeps the number in the big font. Returns the width drawn."""
+    s = str(int(val))
+    w = c.text_width(s, font)
+    c.text(s, x, y, font = font, color = color)
+    degree_mark(c, x + w + 1, y + 1, color)
+    if unit != "":
+        c.text(unit, x + w + 6, y + 1, font = "5x7", color = color)
+    return temp_group_width(c, val, font, unit)
+
+
+def temp_group_width(c, val, font, unit):
+    w = c.text_width(str(int(val)), font) + 4
+    if unit != "":
+        w = w + 2 + c.text_width(unit, "5x7")
+    return w
+
+
 def _fit_clip(c, text, fonts, maxw):
     """[font, text] for the largest font that fits, clipping if none do.
 
@@ -123,15 +151,35 @@ def feels(c, ctx):
     n = 24 if c.width >= 128 else 16
     c.image("THERMO.png", 2, (c.height - n) // 2, w = n, h = n)
 
+    unit = "C" if metric else "F"
+    city = g[2]
+
     if c.width >= 128:
-        c.text("FEELS LIKE", 28, 2, font = "4x5", color = "#987070")
-        c.text(str(int(app)) + "\u00B0", 28, 8, font = "16x20", color = "#FFD0B0")
+        # Header carries the city so the reading is anchored to a place; the app
+        # is already called "Feels Like", so the city is the useful half. The
+        # mugginess word can start as far left as x=104, so clip before it.
+        head = city if city != "" else "FEELS LIKE"
+        hf = _fit_clip(c, head, ["4x5"], 74)
+        c.text(hf[1], 28, 2, font = hf[0], color = "#987070")
+        draw_temp(c, 28, 8, app, "16x20", "#FFD0B0", unit)
         c.text_fit(m[0], c.width - 6, 3, ["10x16", "6x8"], color = m[1],
                    align = "right", maxw = c.width - 110)
         c.text(gap + "   " + str(int(rh)) + "% RH", c.width - 6, 23,
                font = "5x7", color = "#C0A098", align = "right")
     else:
-        c.text_fit(str(int(app)) + "\u00B0", c.width - 2, 3, ["16x20", "10x16"],
-                   color = "#FFD0B0", align = "right", maxw = c.width - 20)
-        c.text_fit(m[0], c.width - 2, 25, ["4x5", "3x4"], color = m[1],
+        # 64px: the city gets the top strip, which is otherwise empty, and the
+        # temperature drops to y=7 to make room for it.
+        if city != "":
+            cf = _fit_clip(c, city, ["4x5", "3x4"], c.width - 2)
+            c.text(cf[1], c.width // 2, 0, font = cf[0], color = "#987070",
+                   align = "center")
+        # Ring only, no F/C: at 64px the letter would force the number down to
+        # a smaller font, and the units setting is the user's own choice anyway.
+        tfont = "16x20"
+        if temp_group_width(c, app, tfont, "") > c.width - 22:
+            tfont = "10x16"
+        # city 0-4, temperature 6-25, word 27-31: no row is shared.
+        tw = temp_group_width(c, app, tfont, "")
+        draw_temp(c, c.width - 2 - tw, 6, app, tfont, "#FFD0B0", "")
+        c.text_fit(m[0], c.width - 2, 27, ["4x5", "3x4"], color = m[1],
                    align = "right", maxw = c.width - 4)
