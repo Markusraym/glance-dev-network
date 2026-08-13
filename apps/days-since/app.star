@@ -28,28 +28,39 @@ FALLBACK = [2026, 1, 1]
 
 
 def parse_date(s):
-    """YYYY-MM-DD -> [y, m, d].
+    """A date setting -> [y, m, d].
 
-    Starlark has no exceptions, so every character is validated by hand before
-    it is used: a typo in the setting falls back to a sane date instead of
-    crashing the render and blanking the panel."""
-    parts = str(s).split("-")
-    if len(parts) != 3:
+    Starlark has no exceptions, so the value is validated by hand before it is
+    used: a bad setting falls back to a sane date instead of crashing the
+    render and blanking the panel.
+
+    This used to split on "-" and require exactly three all-numeric parts,
+    which assumed the value arrives as "YYYY-MM-DD". The picker sends a full
+    ISO stamp, and it does not survive the trip intact. From a device log:
+
+      saved      since-2026-08-13T01:13:10.256Z
+      delivered  2026-08-13T01
+
+    The render descriptor is colon-separated at the top level
+    (GDN:W:H:app:pages:ttl:inputs), so the time's own colons end the value --
+    it is cut at the first one. "13T01" then failed the digit check and the
+    panel silently counted from FALLBACK instead of the chosen day, with
+    nothing to show the setting had been ignored.
+
+    Reducing to digits and taking the first eight accepts the full stamp, the
+    truncated form that actually arrives, and a plain YYYY-MM-DD. The day
+    itself always survives the cut, since it sits before the "T".
+    """
+    ds = ""
+    t = str(s)
+    for i in range(len(t)):
+        if DIGITS.find(t[i]) >= 0:
+            ds = ds + t[i]
+    if len(ds) < 8:
         return FALLBACK
 
-    out = []
-    for p in parts:
-        if len(p) == 0:
-            return FALLBACK
-        n = 0
-        for i in range(len(p)):
-            d = DIGITS.find(p[i])
-            if d < 0:
-                return FALLBACK
-            n = n * 10 + d
-        out.append(n)
-
-    if out[1] < 1 or out[1] > 12 or out[2] < 1 or out[2] > 31:
+    out = [int(ds[0:4]), int(ds[4:6]), int(ds[6:8])]
+    if out[0] < 1900 or out[1] < 1 or out[1] > 12 or out[2] < 1 or out[2] > 31:
         return FALLBACK
     return out
 
