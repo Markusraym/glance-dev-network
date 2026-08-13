@@ -18,11 +18,61 @@ assets:
 
 inputs:
   - key: station
-    type: string
-    app_input_type: free-text
-    label: Station code
-    default: "EMBR"
-    help: "Four-letter BART code, e.g. EMBR, MONT, DBRK. See bart.gov."
+    type: choice
+    app_input_type: dropdown
+    label: Station
+    default: "EMBARCADERO"
+    choices:
+      - "12TH ST OAKLAND CITY CENTER"
+      - "16TH ST MISSION"
+      - "19TH ST OAKLAND"
+      - "24TH ST MISSION"
+      - "ANTIOCH"
+      - "ASHBY"
+      - "BALBOA PARK"
+      - "BAY FAIR"
+      - "BERRYESSA NORTH SAN JOSE"
+      - "CASTRO VALLEY"
+      - "CIVIC CENTER UN PLAZA"
+      - "COLISEUM"
+      - "COLMA"
+      - "CONCORD"
+      - "DALY CITY"
+      - "DOWNTOWN BERKELEY"
+      - "DUBLIN PLEASANTON"
+      - "EL CERRITO DEL NORTE"
+      - "EL CERRITO PLAZA"
+      - "EMBARCADERO"
+      - "FREMONT"
+      - "FRUITVALE"
+      - "GLEN PARK"
+      - "HAYWARD"
+      - "LAFAYETTE"
+      - "LAKE MERRITT"
+      - "MACARTHUR"
+      - "MILLBRAE"
+      - "MILPITAS"
+      - "MONTGOMERY ST"
+      - "NORTH BERKELEY"
+      - "NORTH CONCORD MARTINEZ"
+      - "OAKLAND AIRPORT"
+      - "ORINDA"
+      - "PITTSBURG BAY POINT"
+      - "PITTSBURG CENTER"
+      - "PLEASANT HILL"
+      - "POWELL ST"
+      - "RICHMOND"
+      - "ROCKRIDGE"
+      - "SAN BRUNO"
+      - "SAN LEANDRO"
+      - "SFO AIRPORT"
+      - "SOUTH HAYWARD"
+      - "SOUTH SAN FRANCISCO"
+      - "UNION CITY"
+      - "WALNUT CREEK"
+      - "WARM SPRINGS SOUTH FREMONT"
+      - "WEST DUBLIN PLEASANTON"
+      - "WEST OAKLAND"
   - key: apikey
     type: string
     app_input_type: free-text
