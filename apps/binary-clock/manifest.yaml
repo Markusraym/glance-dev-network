@@ -1,0 +1,27 @@
+gdn: 1
+id: binary-clock
+version: 0.1.0
+name: Binary Clock
+author: glance-led-dev
+description: The time in binary — one column per digit on the BCD page, one row per unit on the bits page.
+category: Time
+entry: app.star
+
+width: 64
+height: 32
+refresh: 60
+
+pages: [bcd, bits]
+
+inputs:
+  - key: zip
+    type: string
+    app_input_type: free-text
+    label: Zip code
+    default: "10001"
+    help: US zip code. Sets your timezone, daylight saving included.
+  - key: accent
+    type: string
+    app_input_type: color
+    label: Accent color
+    default: "#3FC8FF"
