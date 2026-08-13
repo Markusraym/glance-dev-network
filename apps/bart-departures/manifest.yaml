@@ -1,0 +1,81 @@
+gdn: 1
+id: bart-departures
+version: 0.1.0
+name: BART Departures
+author: glance-led-dev
+description: "Real-time BART trains leaving your station, by line and minutes."
+category: Other
+entry: app.star
+
+width: 64
+height: 32
+refresh: 120
+
+pages: [departures]
+
+assets:
+  - TRAIN.png
+
+inputs:
+  - key: station
+    type: choice
+    app_input_type: dropdown
+    label: Station
+    default: "EMBARCADERO"
+    choices:
+      - "12TH ST OAKLAND CITY CENTER"
+      - "16TH ST MISSION"
+      - "19TH ST OAKLAND"
+      - "24TH ST MISSION"
+      - "ANTIOCH"
+      - "ASHBY"
+      - "BALBOA PARK"
+      - "BAY FAIR"
+      - "BERRYESSA NORTH SAN JOSE"
+      - "CASTRO VALLEY"
+      - "CIVIC CENTER UN PLAZA"
+      - "COLISEUM"
+      - "COLMA"
+      - "CONCORD"
+      - "DALY CITY"
+      - "DOWNTOWN BERKELEY"
+      - "DUBLIN PLEASANTON"
+      - "EL CERRITO DEL NORTE"
+      - "EL CERRITO PLAZA"
+      - "EMBARCADERO"
+      - "FREMONT"
+      - "FRUITVALE"
+      - "GLEN PARK"
+      - "HAYWARD"
+      - "LAFAYETTE"
+      - "LAKE MERRITT"
+      - "MACARTHUR"
+      - "MILLBRAE"
+      - "MILPITAS"
+      - "MONTGOMERY ST"
+      - "NORTH BERKELEY"
+      - "NORTH CONCORD MARTINEZ"
+      - "OAKLAND AIRPORT"
+      - "ORINDA"
+      - "PITTSBURG BAY POINT"
+      - "PITTSBURG CENTER"
+      - "PLEASANT HILL"
+      - "POWELL ST"
+      - "RICHMOND"
+      - "ROCKRIDGE"
+      - "SAN BRUNO"
+      - "SAN LEANDRO"
+      - "SFO AIRPORT"
+      - "SOUTH HAYWARD"
+      - "SOUTH SAN FRANCISCO"
+      - "UNION CITY"
+      - "WALNUT CREEK"
+      - "WARM SPRINGS SOUTH FREMONT"
+      - "WEST DUBLIN PLEASANTON"
+      - "WEST OAKLAND"
+  - key: apikey
+    type: string
+    app_input_type: free-text
+    label: BART API key
+    default: "MW9S-E7SL-26DU-VV8V"
+    help: "BART's public demo key works; get your own at bart.gov if you prefer."
