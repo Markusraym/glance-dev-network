@@ -104,6 +104,79 @@ def fitwords(c, text, font, maxw):
 DEMO = "DEMO"
 
 
+REGIONS = {
+    "ALABAMA": "US-AL",
+    "ALASKA": "US-AK",
+    "ARIZONA": "US-AZ",
+    "ARKANSAS": "US-AR",
+    "CALIFORNIA": "US-CA",
+    "COLORADO": "US-CO",
+    "CONNECTICUT": "US-CT",
+    "DELAWARE": "US-DE",
+    "DISTRICT OF COLUMBIA": "US-DC",
+    "FLORIDA": "US-FL",
+    "GEORGIA": "US-GA",
+    "HAWAII": "US-HI",
+    "IDAHO": "US-ID",
+    "ILLINOIS": "US-IL",
+    "INDIANA": "US-IN",
+    "IOWA": "US-IA",
+    "KANSAS": "US-KS",
+    "KENTUCKY": "US-KY",
+    "LOUISIANA": "US-LA",
+    "MAINE": "US-ME",
+    "MARYLAND": "US-MD",
+    "MASSACHUSETTS": "US-MA",
+    "MICHIGAN": "US-MI",
+    "MINNESOTA": "US-MN",
+    "MISSISSIPPI": "US-MS",
+    "MISSOURI": "US-MO",
+    "MONTANA": "US-MT",
+    "NEBRASKA": "US-NE",
+    "NEVADA": "US-NV",
+    "NEW HAMPSHIRE": "US-NH",
+    "NEW JERSEY": "US-NJ",
+    "NEW MEXICO": "US-NM",
+    "NEW YORK": "US-NY",
+    "NORTH CAROLINA": "US-NC",
+    "NORTH DAKOTA": "US-ND",
+    "OHIO": "US-OH",
+    "OKLAHOMA": "US-OK",
+    "OREGON": "US-OR",
+    "PENNSYLVANIA": "US-PA",
+    "RHODE ISLAND": "US-RI",
+    "SOUTH CAROLINA": "US-SC",
+    "SOUTH DAKOTA": "US-SD",
+    "TENNESSEE": "US-TN",
+    "TEXAS": "US-TX",
+    "UTAH": "US-UT",
+    "VERMONT": "US-VT",
+    "VIRGINIA": "US-VA",
+    "WASHINGTON": "US-WA",
+    "WEST VIRGINIA": "US-WV",
+    "WISCONSIN": "US-WI",
+    "WYOMING": "US-WY",
+    "PUERTO RICO": "US-PR",
+    "US VIRGIN ISLANDS": "US-VI",
+}
+
+
+def resolve_region(ctx):
+    """eBird region code for the picked state.
+
+    The setting used to be the code itself -- "US-NY", or a county code like
+    "US-CA-037" -- which you had to go and look up. The dropdown carries state
+    names and this maps them back.
+
+    A county code typed under the old free-text field is not a known name, so
+    it falls through unchanged and still works.
+    """
+    v = str(ctx.inputs.get("region", "")).strip().upper()
+    if v in REGIONS:
+        return REGIONS[v]
+    return v
+
+
 def is_demo(ctx):
     """True when the key is the literal DEMO opt-in.
 
@@ -130,7 +203,7 @@ EBIRD_SAMPLE = {"status_code": 200, "json": [
 
 def sightings(c, ctx):
     token = str(ctx.inputs.get("apikey", "")).strip()
-    region = str(ctx.inputs.get("region", "")).strip().upper()
+    region = resolve_region(ctx)
     if not is_demo(ctx) and (token == "" or region == ""):
         nodata(c, "NOT CONFIGURED", "SET TOKEN")
         return
