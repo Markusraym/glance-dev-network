@@ -1,6 +1,6 @@
 # Citi Bike
 #
-# Bikes and docks at one station, from NYC's public GBFS feed. No key.
+# Bikes and docks at one station, from the public GBFS feed. No key.
 #
 # The station list is baked in rather than fetched. GBFS splits the data in
 # two: station_status carries the live counts, station_information carries the
@@ -8,11 +8,90 @@
 # bytes to move on every render just to turn an id into a label that never
 # changes. Only the status feed is fetched.
 #
-# Both numbers are shown on purpose. Bikes tells you whether you can start a
-# ride; docks tells you whether you can end one, and a full station is just as
-# stuck as an empty one.
+# DESIGN. The panel is black and every label is a picture. A bike silhouette is
+# recognised before any word is read, so the word "BIKES" is not on the panel --
+# the bike is. Same for the bolt (e-bikes) and the slot glyph (docks). White is
+# the resting colour for a live number, which leaves amber and red free to mean
+# something the moment they appear.
 
 STATUS_URL = "https://gbfs.citibikenyc.com/gbfs/en/station_status.json"
+
+# Citi blue, lifted from the brand's #0068A5: at LED gamma the darker blue
+# muddies against black and the frame stops reading as a frame.
+BLUE = "#0E86D6"
+YELLOW = "#FFD500"
+SLATE = "#55606C"      # tyres and rack -- a dark object, not a hole
+CHROME = "#7A8894"     # station name and other inert chrome
+GHOST = "#2A343E"      # an empty dock on the meter
+WHITE = "#FFFFFF"
+
+# Side-on Citi Bike. The thick swoop from the head tube down to the bottom
+# bracket is the step-through frame, which is what makes this read as a Citi
+# Bike rather than a generic bicycle. The white arcs are fenders and the white
+# pixel on the front plate is the rack logo.
+BIKE = """
+................WB.......
+......WWW.........B......
+........B.........B.T...B
+........B.........BTT...W
+.......BB.........B.TTTTB
+......B..B.......BB......
+...WWWB..B......BB.WWW...
+..W..BW...B....BB.WB..W..
+.T...B.T..B...BB.T.B...T.
+T....B..T..B.BB.T...B...T
+T...TBBBBBBBBB..T...T...T
+T.......T..T....T.......T
+.T.....T.........T.....T.
+..T...T...........T...T..
+...TTT.............TTT...
+"""
+
+BIKE_SMALL = """
+....WW.....W.....
+.....B......B...B
+.....B......B.TTB
+.....BB....B.B...
+..WWWBB...B.WWW..
+.T..BT.B.B.T...T.
+T...B.TB.BT.....T
+T...BBBBB.T.....T
+T.....T.T.T.....T
+.T...T.....T...T.
+..TTT.......TTT..
+"""
+
+BIKE_LEGEND = {"B": BLUE, "W": WHITE, "T": SLATE}
+
+BOLT = """
+..YY
+.YY.
+YYYY
+..YY
+.YY.
+YY..
+"""
+
+# An open dock: two posts and a floor.
+DOCK = """
+SS...SS
+SS...SS
+SS...SS
+SS...SS
+SSSSSSS
+"""
+
+NO_ENTRY = """
+...RRR...
+..RRRRR..
+.RRRRRRR.
+RRWWWWWRR
+RRWWWWWRR
+RRWWWWWRR
+.RRRRRRR.
+..RRRRR..
+...RRR...
+"""
 
 STATIONS = {
     "1 AVE AT E 44 ST": "66dc2172-0aca-11e7-82f6-3863bb44ef7c",
@@ -99,7 +178,8 @@ def _fit_clip(c, text, fonts, maxw):
 
 def nodata(c, title, sub):
     """Shown whenever the feed is unreachable. The publish-time validator
-    renders with the network disabled, so this has to say something."""
+    renders every page with the network disabled, so this has to say
+    something sensible rather than going blank."""
     c.fill("#0B0C12")
     maxw = c.width - 6
     if c.width >= 128:
@@ -129,13 +209,51 @@ def resolve_station(ctx):
     return ""
 
 
-def band(n):
-    """Colour for a count. Zero is the whole point of looking, so it is red."""
+def count_color(n):
+    """White while there is nothing to worry about, so amber and red keep their
+    meaning. Colouring every state leaves no colour to raise an alarm with."""
     if n <= 0:
-        return "#FF5B5B"
+        return "#FF2D2D"
     if n <= 3:
-        return "#FFB03A"
-    return "#4EE38A"
+        return "#FFB000"
+    return WHITE
+
+
+def meter(c, x0, x1, total, ebikes, docks):
+    """The dock row: one segment per physical dock, filled ones full height and
+    empty ones a single ghost line.
+
+    A bare count cannot say whether five bikes is comfortable or nearly the
+    last one -- five at a 15-dock station and five at a 55-dock station read
+    identically. This shows the ratio, the e-bike share and the size of the
+    station at a glance, before a digit is read.
+    """
+    slots_total = total + docks
+    if slots_total <= 0:
+        return
+    pitch = 4
+    room = (x1 - x0 + 1) // pitch
+    if slots_total <= room:
+        x = x0
+        for i in range(slots_total):
+            if i < ebikes:
+                c.rect(x, 29, x + 2, 31, fill = YELLOW)
+            elif i < total:
+                c.rect(x, 29, x + 2, 31, fill = BLUE)
+            else:
+                c.rect(x, 31, x + 2, 31, fill = GHOST)
+            x = x + pitch
+    else:
+        # More docks than segments fit: one proportional bar instead, so a very
+        # large station still shows its fill ratio rather than being cut off.
+        w = x1 - x0
+        c.rect(x0, 31, x1, 31, fill = GHOST)
+        fill = (w * total) // slots_total
+        if fill > 0:
+            c.rect(x0, 29, x0 + fill, 31, fill = BLUE)
+            e = (w * ebikes) // slots_total
+            if e > 0:
+                c.rect(x0 + fill - e, 29, x0 + fill, 31, fill = YELLOW)
 
 
 def bikes(c, ctx):
@@ -146,7 +264,7 @@ def bikes(c, ctx):
 
     r = http.get(STATUS_URL, ttl_seconds = 120)
     if r["status_code"] != 200 or not r["json"]:
-        nodata(c, "NO CITI BIKE DATA", "FEED UNREACHABLE")
+        nodata(c, "NO BIKE DATA", "FEED UNREACHABLE")
         return
 
     found = None
@@ -159,52 +277,90 @@ def bikes(c, ctx):
         return
 
     total = int(found.get("num_bikes_available", 0) or 0)
-    ebikes = int(found.get("num_ebikes_available", 0) or 0)
     docks = int(found.get("num_docks_available", 0) or 0)
-    classic = total - ebikes
-    if classic < 0:
-        classic = 0
+    ebikes = int(found.get("num_ebikes_available", 0) or 0)
+    # Citi Bike reports e-bikes in their own field; Indego and several other
+    # GBFS systems report a breakdown by type instead.
+    types = found.get("num_bikes_available_types", None)
+    if ebikes == 0 and types != None:
+        ebikes = int(types.get("electric", 0) or 0)
+    if ebikes > total:
+        ebikes = total
 
-    # A station can be installed but not renting or not returning; the counts
-    # look normal in that case and the trip still fails.
-    shut = ""
-    if not found.get("is_renting", True):
-        shut = "NOT RENTING"
-    elif not found.get("is_returning", True):
-        shut = "NOT RETURNING"
+    renting = found.get("is_renting", True)
+    returning = found.get("is_returning", True)
 
     name = str(ctx.inputs.get("station", "")).strip().upper()
+    tstr = str(total)
+    dstr = str(docks)
 
-    c.gradient_rect(0, 0, c.width - 1, c.height - 1, "#06120A", "#123322",
-                    horizontal = False)
+    c.fill("black")
 
     if c.width >= 128:
-        # Three rows, all left-anchored at the same edge, so no pair can grow
-        # into another as the counts change width.
-        nf = _fit_clip(c, name, ["5x7", "4x5"], c.width - 8)
-        c.text(nf[1], 4, 0, font = nf[0], color = "#7FB6A0")
-        c.text(str(total), 4, 9, font = "16x20", color = band(total))
-        x = 4 + c.text_width(str(total), "16x20") + 5
-        c.text("BIKES", x, 10, font = "5x7", color = "#9CC4B0")
-        c.text(str(ebikes) + " E", x, 19, font = "5x7", color = "#7FB6E8")
-        right = str(docks) + " DOCKS"
-        c.text(right, c.width - 4, 12, font = "6x8", color = band(docks),
-               align = "right")
-        if shut != "":
-            c.text(shut, c.width - 4, 24, font = "5x7", color = "#FF7A5B",
-                   align = "right")
-    else:
-        # 64px will not carry a 16x20 count AND a label beside it: three
-        # digits is 51px of the 62 available, which squeezed "BIKES" down to
-        # "BI". Two labelled lines instead -- both numbers stay readable and
-        # neither can be mistaken for the other, which matters more here than
-        # a big number does.
         nf = _fit_clip(c, name, ["4x5"], c.width - 4)
-        c.text(nf[1], 2, 0, font = nf[0], color = "#7FB6A0")
-        bf = _fit_clip(c, str(total) + " BIKES", ["6x8", "5x7"], c.width - 4)
-        c.text(bf[1], 2, 9, font = bf[0], color = band(total))
-        df = _fit_clip(c, str(docks) + " DOCKS", ["6x8", "5x7"], c.width - 4)
-        c.text(df[1], 2, 19, font = df[0], color = band(docks))
-        if shut != "":
-            c.text(_fit_clip(c, shut, ["4x5"], c.width - 4)[1], 2, 27,
-                   font = "4x5", color = "#FF7A5B")
+        c.text(nf[1], 2, 0, font = nf[0], color = CHROME)
+        # One hairline is the whole grid: it separates header from data for the
+        # cost of a single row.
+        c.hline(0, 7, c.width, "#0C2233")
+
+        # The right cluster is measured first so the left one can be given what
+        # is actually left. Every position below is derived, not guessed: a
+        # three-digit count is 51px at 16x20 and a fixed bolt position sat
+        # underneath it.
+        dock_w = c.text_width(dstr, "10x16")
+        dock_x = c.width - 4 - dock_w
+        ghost_x = dock_x - 4 - 17
+
+        # A dim bike is an empty space. Reusing the hero silhouette for the
+        # docks means one visual idea does both jobs, and neither number needs
+        # a word next to it.
+        c.sprite(BIKE_SMALL, ghost_x, 13,
+                 legend = {"B": "#33404A", "W": "#4A5A66", "T": GHOST})
+        c.text(dstr, dock_x, 12, font = "10x16",
+               color = SLATE if not returning else count_color(docks))
+
+        c.sprite(BIKE, 3, 10, legend = BIKE_LEGEND)
+
+        hero = "16x20"
+        # 6px for the bolt and its gap, plus room for the e-bike count.
+        if 34 + c.text_width(tstr, hero) + 12 + c.text_width(str(ebikes), "8x12") > ghost_x - 6:
+            hero = "10x16"
+        c.text(tstr, 34, 8 if hero == "16x20" else 10, font = hero,
+               color = SLATE if not renting else count_color(total))
+
+        bx = 34 + c.text_width(tstr, hero) + 7
+        if ebikes > 0:
+            c.sprite(BOLT, bx, 16, legend = {"Y": YELLOW})
+            c.text(str(ebikes), bx + 6, 14, font = "8x12", color = WHITE)
+        else:
+            # A dim bolt says "no e-bikes here" faster than the digit 0 does.
+            c.sprite(BOLT, bx, 16, legend = {"Y": "#33404A"})
+
+        meter(c, 2, c.width - 3, total, ebikes, docks)
+
+        # A station can report ordinary counts and still refuse the trip, so
+        # the badge carries the alarm and the dimmed number says it is moot.
+        if not renting:
+            c.sprite(NO_ENTRY, 20, 13, legend = {"R": "#E01A1A", "W": WHITE})
+        if not returning:
+            c.sprite(NO_ENTRY, ghost_x + 4, 15,
+                     legend = {"R": "#E01A1A", "W": WHITE})
+    else:
+        # 64px has room for one bike, so the blue one goes to the bikes count
+        # and the docks are carried by the meter plus a small number. The
+        # ghost bike needs 17 columns it cannot have here.
+        nf = _fit_clip(c, name, ["4x5"], c.width - 2)
+        c.text(nf[1], 1, 0, font = nf[0], color = CHROME)
+        c.sprite(BIKE_SMALL, 1, 8, legend = BIKE_LEGEND)
+        c.text(tstr, 21, 7, font = "10x16",
+               color = SLATE if not renting else count_color(total))
+        bx = 21 + c.text_width(tstr, "10x16") + 4
+        if ebikes > 0 and bx + 4 + c.text_width(str(ebikes), "5x7") <= c.width - 2:
+            c.sprite(BOLT, bx, 8, legend = {"Y": YELLOW})
+            c.text(str(ebikes), bx + 6, 9, font = "5x7", color = WHITE)
+        c.text(dstr + " FREE", c.width - 2, 23, font = "4x5",
+               color = SLATE if not returning else count_color(docks),
+               align = "right")
+        meter(c, 1, c.width - 2, total, ebikes, docks)
+        if not renting:
+            c.sprite(NO_ENTRY, 12, 11, legend = {"R": "#E01A1A", "W": WHITE})
