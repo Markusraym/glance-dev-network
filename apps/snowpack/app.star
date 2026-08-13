@@ -122,13 +122,34 @@ def depth(c, ctx):
 
     sign = "+" if change >= 0 else ""
     if c.width >= 128:
-        c.text("BASE DEPTH", 30, 2, font = "4x5", color = "#6E86A8")
-        c.text_fit(str(int(inches)) + " IN", 30, 8, ["16x20", "10x16"],
-                   color = col, maxw = c.width - 120)
-        c.text(note, c.width - 6, 4, font = "10x16", color = col,
+        # The band word is drawn first so the label and the depth can be given
+        # what is actually left. It used to be a fixed 10x16 right-aligned with
+        # no maxw, and "DECENT BASE" is 119px in that font -- it began at x=67
+        # and ran back through both "BASE DEPTH" (ends x=77) and the depth
+        # itself, whose maxw let it reach x=102.
+        #
+        # That is the 12-36 inch band, so the panel was broken for ordinary
+        # midwinter snowpack while BARE, THIN and DEEP -- all short words --
+        # looked perfectly fine. Capping the word at 90px keeps those three at
+        # 10x16 and drops only the long one to 6x8, which buys back 43px.
+        nf = _fit_clip(c, note, ["10x16", "6x8"], 90)
+        c.text(nf[1], c.width - 6, 4, font = nf[0], color = col,
                align = "right")
-        c.text(sign + str(int(change)) + " IN 7 DAYS", c.width - 6, 23,
-               font = "5x7", color = "#8AA4C0", align = "right")
+        c.text("BASE DEPTH", 30, 2, font = "4x5", color = "#6E86A8")
+        # The depth has two neighbours, not one. At 16x20 it spans rows 8-27,
+        # so it shares rows with the band word above AND the 7-day line below,
+        # and it has to clear whichever starts further left. A three-digit
+        # depth beside a short word (120 IN / DEEP) cleared the word but ran
+        # into the 7-day line.
+        detail = sign + str(int(change)) + " IN 7 DAYS"
+        room = c.width - 44 - c.text_width(nf[1], nf[0])
+        below = c.width - 42 - c.text_width(detail, "5x7")
+        if below < room:
+            room = below
+        c.text_fit(str(int(inches)) + " IN", 30, 8, ["16x20", "10x16"],
+                   color = col, maxw = room)
+        c.text(detail, c.width - 6, 23, font = "5x7", color = "#8AA4C0",
+               align = "right")
     else:
         c.text_fit(str(int(inches)) + "IN", c.width - 2, 3, ["16x20", "10x16"],
                    color = col, align = "right", maxw = c.width - 20)
