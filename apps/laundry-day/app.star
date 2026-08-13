@@ -138,5 +138,11 @@ def verdict(c, ctx):
     else:
         c.text_fit(line, c.width - 2, 8, ["10x16", "6x8", "5x7"], color = col,
                    align = "right", maxw = c.width - 20)
-        c.text_fit(note, c.width - 2, 25, ["4x5", "3x4"], color = "#B0BCD4",
+        # 4x5 only: 3x4 has no space glyph, so "DRY AND BREEZY" came out as
+        # "DRYANDBREEZY". That one note is 65px at 4x5 against 60px of panel,
+        # so it cannot simply widen -- the narrow layout takes a shorter
+        # wording instead of a broken one. The verdict above it already
+        # carries the meaning. Every other note fits as written.
+        short = "BREEZY" if note == "DRY AND BREEZY" else note
+        c.text_fit(short, c.width - 2, 25, ["4x5"], color = "#B0BCD4",
                    align = "right", maxw = c.width - 4)
