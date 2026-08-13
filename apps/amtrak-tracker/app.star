@@ -171,6 +171,64 @@ def resolve_train(ctx):
     return v
 
 
+def _days_from_civil(y, m, d):
+    yy = y - 1 if m <= 2 else y
+    era = (yy if yy >= 0 else yy - 399) // 400
+    yoe = yy - era * 400
+    mm = m + (-3 if m > 2 else 9)
+    doy = (153 * mm + 2) // 5 + d - 1
+    doe = yoe * 365 + yoe // 4 - yoe // 100 + doy
+    return era * 146097 + doe - 719468
+
+
+def iso_minutes(s):
+    """"2026-08-12T18:46:00-04:00" -> minutes, for differencing two stamps.
+
+    Both stamps in a comparison come from the same station in the same feed,
+    so they share a timezone offset and it cancels out -- which is why the
+    offset is ignored rather than parsed. The date is included because a
+    delayed overnight train can push arr past midnight while schArr sits on
+    the previous day, and a time-only diff would read that as 23 hours early.
+    """
+    if len(s) < 16:
+        return None
+    return (_days_from_civil(int(s[0:4]), int(s[5:7]), int(s[8:10])) * 1440
+            + int(s[11:13]) * 60 + int(s[14:16]))
+
+
+def iso_clock(s):
+    """"2026-08-12T18:46:00-04:00" -> "6:46P", in the station's own local time."""
+    if len(s) < 16:
+        return ""
+    hh = int(s[11:13])
+    ap = "A" if hh < 12 else "P"
+    h = hh % 12
+    if h == 0:
+        h = 12
+    return str(h) + ":" + fmt.pad(int(s[14:16])) + ap
+
+
+def timing(st):
+    """[text, colour] for how late the train is into its next stop.
+
+    trainTimely is the feed's own summary, but it is frequently an empty
+    string -- it was blank on every train sampled while building this -- so
+    the delay is computed from the stop's own arr vs schArr instead.
+    """
+    arr = str(st.get("arr", ""))
+    sch = str(st.get("schArr", ""))
+    a = iso_minutes(arr)
+    s = iso_minutes(sch)
+    if a == None or s == None:
+        return ["", "#8FA8D8"]
+    d = a - s
+    if d >= 3:
+        return ["+" + str(d) + " LATE", "#FF7A5B"]
+    if d <= -3:
+        return [str(-d) + " EARLY", "#7FB6E8"]
+    return ["ON TIME", "#4EE38A"]
+
+
 def train(c, ctx):
     num = resolve_train(ctx)
     if num == "":
@@ -193,48 +251,89 @@ def train(c, ctx):
 
     t = runs[0]
     route = str(t.get("routeName", "")).upper()
-    timely = str(t.get("trainTimely", "")).upper()
     stations = t.get("stations", [])
     dest = str(t.get("destCode", "")).upper()
+    orig = str(t.get("origCode", "")).upper()
+    speed = int(float(t.get("velocity", 0) or 0))
 
     done = 0
     nxt = dest
+    nxtst = None
     for s in stations:
         st = str(s.get("status", "")).upper()
         if st == "DEPARTED":
             done += 1
-        elif nxt == dest:
+        elif nxtst == None:
             nxt = str(s.get("code", dest)).upper()
+            nxtst = s
     frac = 0.0 if len(stations) <= 1 else done / float(len(stations) - 1)
     if frac > 1.0:
         frac = 1.0
 
-    late = timely.find("LATE") >= 0
-    col = "#FF7A5B" if late else "#4EE38A"
+    eta = iso_clock(str(nxtst.get("arr", ""))) if nxtst != None else ""
+    tm = timing(nxtst) if nxtst != None else ["", "#8FA8D8"]
+    timely = tm[0]
+    col = tm[1]
 
     c.gradient_rect(0, 0, c.width - 1, c.height - 1, "#05080F", "#131C2E",
                     horizontal = False)
 
-    ty = c.height - 8
-    c.rect(0, ty + 4, c.width - 1, ty + 5, fill = "#4A5470")
+    # The track owns the bottom band on its own. The locomotive used to be a
+    # 20px sprite hung above the rail, spanning y=10..30, so it drove straight
+    # through the text row at y=11 -- and because it is positioned by progress
+    # along the route, which row it landed on changed as the train moved.
+    # Rail at 30, sprite 10px sitting on it, nothing else below y=24.
+    railw = 8
+    c.rect(0, 30, c.width - 1, 30, fill = "#4A5470")
     for x in range(1, c.width, 4):
-        c.rect(x, ty + 6, x + 1, ty + 6, fill = "#2E364A")
-
-    ls = 20 if c.width >= 128 else 14
-    lx = int(frac * (c.width - ls - 2))
-    c.image("LOCO.png", lx, ty - ls + 6, w = ls, h = ls)
+        c.rect(x, 31, x + 1, 31, fill = "#2E364A")
+    lx = int(frac * (c.width - railw - 2))
+    c.image("LOCO.png", lx, 24, w = railw, h = railw)
 
     if c.width >= 128:
-        c.text(fitwords(c, route, "6x8", c.width - 92), 4, 1, font = "6x8",
+        # Three bands of two columns, then the track: 0-7, 9-15, 17-23, 24-31.
+        # The old layout had two rows and a big sprite, which left the middle
+        # of a 192px panel empty; origin/destination, the arrival time and the
+        # speed were all sitting unused in the same response.
+        c.text(fitwords(c, route, "6x8", c.width - 70), 4, 0, font = "6x8",
                color = "#8FA8D8")
-        c.text("#" + num, c.width - 6, 1, font = "6x8", color = "#C8D4EC",
+        c.text("#" + num, c.width - 6, 0, font = "6x8", color = "#C8D4EC",
                align = "right")
-        c.text(fitwords(c, timely, "5x7", 110), 4, 11, font = "5x7", color = col)
-        c.text("NEXT " + nxt, c.width - 6, 11, font = "5x7", color = "#8FA8D8",
+
+        if orig != "" and dest != "":
+            # "-" not ">": the bitmap fonts have no '>' glyph, so it measured 0px
+            # and drew nothing, leaving "CHI  EMY" with a hole in the middle.
+            c.text(orig + "-" + dest, 4, 9, font = "5x7", color = "#C8D4EC")
+        nx = "NEXT " + nxt
+        if eta != "":
+            nx = nx + " " + eta
+        c.text(nx, c.width - 6, 9, font = "5x7", color = "#DCE4F4",
                align = "right")
+
+        c.text(fitwords(c, timely, "5x7", 90), 4, 17, font = "5x7", color = col)
+        if speed > 0:
+            c.text(str(speed) + " MPH", c.width - 6, 17, font = "5x7",
+                   color = "#7F8CA8", align = "right")
+        else:
+            c.text("STOPPED", c.width - 6, 17, font = "5x7", color = "#7F8CA8",
+                   align = "right")
     else:
-        c.text("#" + num, 2, 1, font = "5x7", color = "#C8D4EC")
-        c.text(nxt, c.width - 2, 1, font = "5x7", color = "#8FA8D8",
+        c.text("#" + num, 2, 0, font = "5x7", color = "#C8D4EC")
+        c.text(nxt, c.width - 2, 0, font = "5x7", color = "#8FA8D8",
                align = "right")
-        c.text(fitwords(c, timely, "4x5", c.width - 4), 2, 10, font = "4x5",
+        # 64px cannot hold the arrival time and the endpoints side by side at
+        # full size, so the time is placed first and the endpoints get only
+        # what is left -- dropping out entirely rather than colliding.
+        etaw = 0
+        if eta != "":
+            c.text(eta, c.width - 2, 9, font = "5x7", color = "#DCE4F4",
+                   align = "right")
+            etaw = c.text_width(eta, "5x7")
+        if orig != "" and dest != "":
+            ends = orig + "-" + dest
+            # All of it or none: a clipped "CHI-S" reads as a rendering fault
+            # rather than an abbreviation.
+            if c.text_width(ends, "4x5") <= c.width - etaw - 8:
+                c.text(ends, 2, 10, font = "4x5", color = "#7F8CA8")
+        c.text(fitwords(c, timely, "4x5", c.width - 4), 2, 17, font = "4x5",
                color = col)
