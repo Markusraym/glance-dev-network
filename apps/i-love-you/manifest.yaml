@@ -21,3 +21,4 @@ inputs:
     app_input_type: api-key
     label: "API Key"
     default: ""
+    help: "The key for YOUR api, sent as ?apiKey= to the URL above. There is no signup link because the api is the one you build -- if yours needs no key, put any value here."

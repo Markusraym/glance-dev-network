@@ -16,7 +16,7 @@ inputs:
     app_input_type: api-key
     type: string
     label: Twelve Data API key
-    help: Free key from twelvedata.com — 800 calls a day.
+    help: "Free key from https://twelvedata.com/apikey -- 800 calls a day on the free tier."
   - key: symbols
     type: string
     app_input_type: free-text
