@@ -201,19 +201,53 @@ def bell(c, ctx):
     c.gradient_rect(0, 0, c.width - 1, c.height - 1, "#0A0A12", "#1E1E2E",
                     horizontal = False)
     sz = 24 if c.width >= 128 else 16
-    c.image("BELL.png", 1, (c.height - sz) // 2, w = sz, h = sz)
+    # Centred on the Scroll, which has the width to put text beside it. On
+    # 64px the state needs a full-width row of its own along the bottom, so
+    # the bell moves to the top-left to stay out of it.
+    c.image("BELL.png", 1, (c.height - sz) // 2 if c.width >= 128 else 1,
+            w = sz, h = sz)
 
     if c.width >= 128:
-        c.text_fit(state, 28, 3, ["16x20", "10x16"], color = col,
-                   maxw = c.width - 110)
-        c.text(note, c.width - 6, 5, font = "5x7", color = "#8A92AC",
-               align = "right")
+        # The state used to share a row with the note: it was left-aligned at
+        # x=28 with maxw = width - 110 (82px) and the note was right-aligned
+        # with no limit at all. "AFTER HOURS" is 119px at 10x16 even after
+        # text_fit picks its smallest option -- text_fit still draws when
+        # nothing fits -- so it reached x=147 while "CLOSED FOR TODAY" started
+        # at x=90, and the two printed through each other. Every state now gets
+        # a row to itself, with the note underneath.
         if left != "":
-            c.text(left, c.width - 6, 14, font = "10x16", color = "#FFFFFF",
+            # OPEN / PRE-MARKET: the countdown is the answer, so it keeps the
+            # big font and the state name gives way.
+            c.text_fit(state, 28, 0, ["10x16", "8x12", "6x8"], color = col,
+                       maxw = c.width - 34)
+            c.text(note, 28, 18, font = "5x7", color = "#8A92AC")
+            c.text(left, c.width - 6, 16, font = "10x16", color = "#FFFFFF",
                    align = "right")
+        else:
+            # CLOSED / AFTER HOURS: there is no countdown, so the state itself
+            # is the message and takes the full width above the note.
+            c.text_fit(state, 28, 2, ["16x20", "10x16", "8x12"], color = col,
+                       maxw = c.width - 34)
+            c.text(note, 28, 23, font = "6x8", color = "#8A92AC")
     else:
-        c.text_fit(state, c.width - 2, 3, ["10x16", "6x8", "5x7"], color = col,
-                   align = "right", maxw = c.width - 20)
-        c.text_fit(left if left != "" else note, c.width - 2, 22,
-                   ["6x8", "4x5"], color = "#DCE0F0", align = "right",
-                   maxw = c.width - 20)
+        # 64px had the same fault as the wide panel and worse: text_fit still
+        # draws when even its smallest option overflows, so "AFTER HOURS" and
+        # "CLOSED FOR TODAY" both ran off the panel and through the bell.
+        # _fit_clip clips instead, and the state moves to its own full-width
+        # row below the icon so it is not fighting for the 44px beside it.
+        top = left
+        if top == "":
+            # The long notes are written for the Scroll. At 64px the state
+            # already says the market is shut, so this only has to add what
+            # the state does not: which kind of closure.
+            if note == "MARKET HOLIDAY":
+                top = "HOLIDAY"
+            elif note == "WEEKEND":
+                top = "WEEKEND"
+        if top != "":
+            tf = _fit_clip(c, top, ["6x8", "5x7", "4x5"], c.width - 20)
+            c.text(tf[1], c.width - 2, 3, font = tf[0], color = "#DCE0F0",
+                   align = "right")
+        sf = _fit_clip(c, state, ["6x8", "5x7", "4x5"], c.width - 4)
+        c.text(sf[1], c.width // 2, 20, font = sf[0], color = col,
+               align = "center")
