@@ -8,23 +8,6 @@ When a session is no longer live: users will see the next scheduled race — tra
 
 ![Motorsports Live preview](preview/preview.png)
 
-## Preview
-
-From the GLANCE Developer Network repository:
-
-```powershell
-pip install -e .
-gdn studio apps/motorsports-live
-```
-
-The browser-only preview is also available with:
-
-```powershell
-gdn preview apps/motorsports-live
-```
-
-If the `gdn` executable is not on `PATH`, use `python -m gdn.cli` in its place.
-
 ## Configuration
 
 - **Series** — NASCAR Cup, the O'Reilly Auto Parts Series, the Craftsman Truck Series, or Formula 1.
