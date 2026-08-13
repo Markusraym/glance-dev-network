@@ -4,6 +4,7 @@ version: 0.1.0
 name: Nearby Aircraft
 author: ceickholt
 description: Track the most relevant aircraft near a U.S. ZIP code with route, speed, altitude, distance, data age, and color-coded type hints.
+category: Transportation
 entry: app.star
 width: 64
 height: 32
