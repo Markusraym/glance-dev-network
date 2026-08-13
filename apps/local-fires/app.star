@@ -99,7 +99,10 @@ def _geocode(zip):
         return None
 
     p = places[0]
-    return [float(p["latitude"]), float(p["longitude"])]
+    # The place name rides along with the coordinates -- the response already
+    # carries it, so naming the panel costs no extra call.
+    return [float(p["latitude"]), float(p["longitude"]),
+            str(p.get("place name", "")).upper()]
 
 # ---------- step 2: fires near that point ----------
 # Returns {"ok": True, ...} or {"ok": False, "title":..., "sub":...}
@@ -210,6 +213,7 @@ def fetch(ctx):
 
     return {
         "ok": True,
+        "place": loc[2],
         "risk": risk,
         "color": color,
         "active": active,
@@ -231,11 +235,16 @@ def status(c, ctx):
         _err(c, d, "red")
         return
 
-    city = _s(ctx, "city", "").upper()
-
     c.fill("black")
     c.rect(0, 0, c.width - 1, 8, fill = "red")
-    c.text(city or "FIRE WATCH", c.width // 2, 1, font = "5x7", color = "white", align = "center")
+    # Named from the zip lookup rather than a hand-typed label. A typed label
+    # was as long as the user made it; a looked-up one can be anything the
+    # postal database holds, so drop to 4x5 for the long ones -- "RANCHO SANTA
+    # MARGARITA" is 132px at 5x7 and would run off a 128 panel.
+    head = d["place"] or "FIRE WATCH"
+    c.text(head, c.width // 2, 1,
+           font = fit_font(c, head, ["5x7", "4x5"], c.width - 4),
+           color = "white", align = "center")
     c.image("flame.png", 3, 10, w = 13, h = 16)          # custom icon from this folder
     c.text("ACTIVITY", 22, 10, font = "4x5", color = "gray")
     c.text(d["risk"], 22, 17, font = "7x12", color = d["color"])
