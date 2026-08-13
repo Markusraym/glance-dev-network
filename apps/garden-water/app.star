@@ -127,13 +127,21 @@ def water(c, ctx):
     c.image("WATERCAN.png", 2, 3, w = n, h = n)
 
     if c.width >= 128:
-        c.text_fit(line, 30, 5, ["16x20", "10x16"], color = col,
-                   maxw = c.width - 80)
-        c.text(note, c.width - 6, 6, font = "6x8", color = "#9CBCA4",
-               align = "right")
+        # Three stacked rows right of the can: 0-15 verdict, 17-23 note,
+        # 25-31 detail. The verdict was left-aligned with maxw = width - 80,
+        # so it could reach x=142, while the note was right-aligned with no
+        # maxw at all and began at x=82 for "RAIN COVERED IT". They printed
+        # through each other in every state, not just the long one -- even
+        # "WATER SOON" against a short "14MM SHORT" collided.
+        #
+        # Left-aligning all three at x=30 removes the failure mode rather than
+        # re-balancing it: no pair can overlap however the strings change.
+        # Widest of each row against the 156px available: verdict 108 at
+        # 10x16, note 89 at 5x7, detail 119 at 5x7.
+        c.text(line, 30, 0, font = "10x16", color = col)
+        c.text(note, 30, 17, font = "5x7", color = "#9CBCA4")
         c.text("LOST " + str(int(lost)) + "MM   RAIN " + str(int(got)) + "MM",
-               c.width - 6, 24, font = "5x7", color = "#6E8C78",
-               align = "right")
+               30, 25, font = "5x7", color = "#6E8C78")
     else:
         c.text_fit(line, c.width - 2, 8, ["10x16", "6x8"], color = col,
                    align = "right", maxw = c.width - 20)
