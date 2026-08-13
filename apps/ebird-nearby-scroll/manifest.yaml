@@ -1,0 +1,31 @@
+gdn: 1
+id: ebird-nearby-scroll
+version: 0.1.0
+name: Bird Sightings (Scroll)
+author: glance-led-dev
+description: "Notable birds reported near you in the last week, from eBird."
+category: Science
+entry: app.star
+
+width: 192
+height: 32
+refresh: 3600
+
+pages: [sightings]
+
+assets:
+  - BIRD.png
+
+inputs:
+  - key: apikey
+    type: string
+    app_input_type: api-key
+    label: eBird API token
+    default: ""
+    help: Free from ebird.org/api/keygen.
+  - key: region
+    type: string
+    app_input_type: free-text
+    label: Region code
+    default: "US-NY"
+    help: "eBird region, e.g. US-NY or US-CA-037."
