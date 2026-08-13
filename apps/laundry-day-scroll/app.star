@@ -83,6 +83,12 @@ def verdict(c, ctx):
     r = http.get("https://api.open-meteo.com/v1/forecast",
                  params = {"latitude": str(g[0]), "longitude": str(g[1]),
                            "daily": "et0_fao_evapotranspiration,precipitation_probability_max,wind_speed_10m_max",
+                           # Pinned, not left to the default. Open-Meteo
+                           # answers in km/h unless asked otherwise, so the
+                           # unlabelled wind on this panel was km/h being read
+                           # as mph by an app whose only setting is a US zip
+                           # -- 16 on the panel meant 10.
+                           "wind_speed_unit": "mph",
                            "timezone": "auto", "forecast_days": "1"},
                  ttl_seconds = 3600)
     if r["status_code"] != 200 or not r["json"]:
@@ -133,8 +139,13 @@ def verdict(c, ctx):
         # also means no pair can collide as the strings change.
         c.text(line, 30, 0, font = "10x16", color = col)
         c.text(note, 30, 17, font = "5x7", color = "#B0BCD4")
-        c.text("DRYING " + str(int(et * 10) / 10.0) + "MM   WIND "
-               + str(int(wind)), 30, 25, font = "5x7", color = "#78849C")
+        # Two spaces, and MPH tight against the number: at three spaces the
+        # worst realistic reading ("DRYING 12.5MM   WIND 100 MPH") is 167px
+        # against the 156px this row has, so it would have overflowed exactly
+        # the way the bugs this batch has been fixing do.
+        c.text("DRYING " + str(int(et * 10) / 10.0) + "MM  WIND "
+               + str(int(wind)) + "MPH", 30, 25, font = "5x7",
+               color = "#78849C")
     else:
         c.text_fit(line, c.width - 2, 8, ["10x16", "6x8", "5x7"], color = col,
                    align = "right", maxw = c.width - 20)
