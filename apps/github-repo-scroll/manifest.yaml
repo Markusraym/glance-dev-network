@@ -19,4 +19,4 @@ inputs:
     app_input_type: free-text
     label: Repository
     default: "glance-led-dev/glance-dev-network"
-    help: owner/name of any public repository.
+    help: "Owner and name only, like glance-led-dev/glance-dev-network. Not the full URL -- a pasted https:// link cannot reach the app, because the colon ends the value in transit."

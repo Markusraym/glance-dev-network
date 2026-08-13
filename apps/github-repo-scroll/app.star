@@ -81,8 +81,41 @@ def short(n):
     return str(n)
 
 
+def normalize_repo(v):
+    """owner/name out of whatever was entered.
+
+    A pasted github.com URL is stripped down to owner/name. That helps in
+    Studio and anywhere the value arrives whole -- but note it cannot rescue
+    a URL saved on a panel, because one never reaches the app intact. Input
+    values ride a colon-separated render descriptor
+    (GDN:W:H:app:pages:ttl:inputs), so "https://github.com/o/n" is cut at the
+    first colon: the app is handed the string "https" and the rest of the URL
+    is parsed as a separate descriptor field. Seen in a device log as
+    .../gdn_github_repo_scroll/https-1.bin.
+    """
+    s = str(v).strip()
+    low = s.lower()
+    for pre in ["https://github.com/", "http://github.com/",
+                "https://www.github.com/", "http://www.github.com/",
+                "www.github.com/", "github.com/"]:
+        if low.startswith(pre):
+            s = s[len(pre):]
+            break
+    if s.endswith(".git"):
+        s = s[:len(s) - 4]
+    if s.endswith("/"):
+        s = s[:len(s) - 1]
+    return s
+
+
 def stats(c, ctx):
-    repo = str(ctx.inputs.get("repo", "")).strip()
+    repo = normalize_repo(ctx.inputs.get("repo", ""))
+    # What is left of a pasted URL after the descriptor cuts it. Saying so is
+    # the difference between a fixable message and "NO REPO" on a setting the
+    # viewer is sure they filled in.
+    if repo.lower() == "https" or repo.lower() == "http":
+        nodata(c, "NOT A URL", "OWNER/NAME")
+        return
     if repo == "" or repo.find("/") < 0:
         nodata(c, "NO REPO", "SET OWNER/NAME")
         return
@@ -105,14 +138,31 @@ def stats(c, ctx):
     if c.width >= 128:
         # Reserve the forks/issues column first, then fit the name to what is
         # left — long repository names ran straight into it.
+        # Measure the forks/issues column, then fit the name AND the star
+        # block into what is left. The star count was drawn at a fixed 16x20
+        # with no bound and the STARS label was positioned from its width, so
+        # a big number pushed the label rightwards into the issues column:
+        # torvalds/linux renders 242.6K, which is 102px, and STARS landed on
+        # top of "ISSUES 3". Small repos hid it -- "4" is 17px wide.
+        fork_s = "FORKS " + short(forks)
+        iss_s = "ISSUES " + short(issues)
+        rcol = c.text_width(fork_s, "6x8")
+        if c.text_width(iss_s, "6x8") > rcol:
+            rcol = c.text_width(iss_s, "6x8")
+
         c.text_fit(name, 6, 2, ["6x8", "5x7", "4x5"], color = "#C8CCE0",
-                   maxw = c.width - 96)
-        c.text(short(stars), 6, 12, font = "16x20", color = "#F5C242")
-        c.text("STARS", 6 + c.text_width(short(stars), "16x20") + 4, 24,
+                   maxw = c.width - rcol - 20)
+
+        lbl_w = c.text_width("STARS", "4x5")
+        nf = _fit_clip(c, short(stars), ["16x20", "10x16", "6x8"],
+                       c.width - rcol - 26 - lbl_w)
+        c.text(nf[1], 6, 12, font = nf[0], color = "#F5C242")
+        c.text("STARS", 6 + c.text_width(nf[1], nf[0]) + 4, 24,
                font = "4x5", color = "#7A6A48")
-        c.text("FORKS " + short(forks), c.width - 6, 6, font = "6x8",
+
+        c.text(fork_s, c.width - 6, 6, font = "6x8",
                color = "#8FD4FF", align = "right")
-        c.text("ISSUES " + short(issues), c.width - 6, 18, font = "6x8",
+        c.text(iss_s, c.width - 6, 18, font = "6x8",
                color = "#FF9A5B", align = "right")
     else:
         # Clipped, not shrunk to 3x4: that font has no hyphen, which turned
