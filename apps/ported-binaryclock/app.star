@@ -11,11 +11,76 @@
 # render.Box dot grid became c.rect calls. Year is shown as 2 digits so all the
 # columns fit 32px tall.
 #
-# The Location schema became a UTC-offset input -- the original read local time
+# The Location schema became a time-zone input -- the original read local time
 # and this was rendering raw UTC. Bit color is configurable, as it was upstream.
 
 NBITS = 7
 POW = [64, 32, 16, 8, 4, 2, 1]
+
+# ---------- time zone ----------
+# ctx.now is UTC. Each US zone is "UTC minus N hours", plus an hour while
+# daylight saving is in effect. Same table and DST rule as apps/us-sky-clock,
+# so the two apps always agree on the wall clock.
+# [base offset, observes DST]
+ZONES = {
+    "EASTERN": [-5, True],
+    "CENTRAL": [-6, True],
+    "MOUNTAIN": [-7, True],
+    "ARIZONA": [-7, False],
+    "PACIFIC": [-8, True],
+    "ALASKA": [-9, True],
+    "HAWAII": [-10, False],
+}
+
+def _days_from_civil(y, m, d):
+    yy = y - 1 if m <= 2 else y
+    era = (yy if yy >= 0 else yy - 399) // 400
+    yoe = yy - era * 400
+    mm = m + (-3 if m > 2 else 9)
+    doy = (153 * mm + 2) // 5 + d - 1
+    doe = yoe * 365 + yoe // 4 - yoe // 100 + doy
+    return era * 146097 + doe - 719468
+
+def _nth_sunday(y, month, nth):
+    fd = (_days_from_civil(y, month, 1) + 4) % 7
+    first_sun = 1 + ((7 - fd) % 7)
+    return first_sun + (nth - 1) * 7
+
+def _is_dst(y, mo, d, h):
+    # US rule: second Sunday in March to first Sunday in November.
+    start = _nth_sunday(y, 3, 2)
+    end = _nth_sunday(y, 11, 1)
+    if mo < 3 or mo > 11:
+        return False
+    if mo > 3 and mo < 11:
+        return True
+    if mo == 3:
+        if d > start:
+            return True
+        if d < start:
+            return False
+        return h >= 2
+    if d < end:
+        return True
+    if d > end:
+        return False
+    return h < 2
+
+def _zone_offset(ctx):
+    """Resolve the zone dropdown to a UTC offset in hours, DST included."""
+    zone = ctx.inputs.get("zone", "EASTERN")
+    if zone == None:
+        zone = "EASTERN"
+    zone = zone.upper()
+    if zone not in ZONES:
+        zone = "EASTERN"
+    base = ZONES[zone][0]
+    observes = ZONES[zone][1]
+    u = ctx.now.unix
+    usecs = u % 86400
+    uy, umo, ud = _civil_from_days((u - usecs) // 86400)
+    dst = observes and _is_dst(uy, umo, ud, usecs // 3600)
+    return base + (1 if dst else 0)
 
 def _civil_from_days(z):
     # Days since 1970-01-01 -> (year, month, day), so the date matches the
@@ -48,9 +113,9 @@ def _dim(col, amt):
     return out
 
 def main(c, ctx):
-    off = int(ctx.inputs.get("tz_offset", -4))
-    on_col = ctx.inputs.get("on_color", "#FF0000")
-    show_secs = ctx.inputs.get("show_seconds", "no") == "yes"
+    off = _zone_offset(ctx)
+    on_col = ctx.inputs.get("oncolor", "#FF0000")
+    show_secs = ctx.inputs.get("showseconds", "no") == "yes"
 
     # Shift UTC to local, then read every field off that one timestamp so the
     # date and the clock can never disagree near midnight.
