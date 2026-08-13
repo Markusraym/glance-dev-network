@@ -26,7 +26,7 @@ inputs:
     type: api-key
     app_input_type: api-key
     default: ""
-    help: "Get this from your WU Account → My Devices → API Keys Tab (wunderground.com/login?action=member-devices)"  
+    help: "From https://www.wunderground.com/member/api-keys -- sign in, then My Devices, then the API Keys tab."
   - key: stationid
     label: PWS Station ID
     type: free-text
