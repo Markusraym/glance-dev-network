@@ -22,7 +22,7 @@ inputs:
     app_input_type: api-key
     label: Steam Web API key
     default: ""
-    help: Free from steamcommunity.com/dev/apikey.
+    help: "Free from https://steamcommunity.com/dev/apikey (needs a Steam account with a verified email)."
   - key: steamid
     type: string
     app_input_type: free-text

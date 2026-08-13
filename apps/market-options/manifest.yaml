@@ -16,7 +16,7 @@ inputs:
     app_input_type: api-key
     type: string
     label: Tradier API token
-    help: Live brokerage token from web.tradier.com/user/api (Bearer token). Required.
+    help: "Bearer token from https://web.tradier.com/user/api . Needs a funded Tradier brokerage account -- there is no free tier for this one."
   - key: symbol
     type: string
     app_input_type: dropdown

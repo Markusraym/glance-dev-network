@@ -15,7 +15,7 @@ inputs:
     app_input_type: api-key
     type: string
     label: Weather Underground API key
-    help: Free PWS contributor key from wunderground.com/member/api-keys
+    help: "Free PWS contributor key from https://www.wunderground.com/member/api-keys . You need to be contributing data from a personal weather station to get one."
   - key: station
     type: string
     app_input_type: free-text
