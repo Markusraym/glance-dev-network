@@ -3,13 +3,18 @@
 
 SERIES_IDS = {
     "CUP": 1,
+    "OREILLY": 2,
+    "O'REILLY": 2,
+    # Legacy choice name from before the 2026 title-sponsor change.
     "XFINITY": 2,
     "TRUCKS": 3,
 }
 
 SERIES_SHORT = {
     "CUP": "CUP",
-    "XFINITY": "XFY",
+    "OREILLY": "ORL",
+    "O'REILLY": "ORL",
+    "XFINITY": "ORL",
     "TRUCKS": "TRK",
 }
 
@@ -196,10 +201,31 @@ def fastest_last_lap_num(vehicles):
     return best_num
 
 
+def is_on_lead_lap(laps, leader_laps, cf_delta):
+    # CF has no laps_down field. Vehicle `delta` is seconds behind the leader
+    # while on the lead lap (>= 0), or a negative lap deficit (-1, -2, ...)
+    # when lapped — prefer that official signal when present.
+    if cf_delta != None and cf_delta != "":
+        if float(cf_delta) < 0:
+            return False
+        return True
+    # Fallback: mid-lap tolerant laps_completed rule. After the leader crosses
+    # S/F, most of the lead-lap field still shows leader_laps-1 until they
+    # cross — exact equality (laps >= leader_laps) flickers (~6 then ~32).
+    if leader_laps <= 0:
+        return True
+    return laps >= leader_laps - 1
+
+
 def vehicle_rows(feed):
     vehicles = feed.get("vehicles", [])
     race_lap = int(feed.get("lap_number", 0))
     fastest_num = fastest_last_lap_num(vehicles)
+    leader_laps = 0
+    for car in vehicles:
+        if int(car.get("running_position", 0)) == 1:
+            leader_laps = int(car.get("laps_completed", 0))
+            break
     rows = []
     for car in vehicles:
         status = int(car.get("status", 1))
@@ -207,10 +233,12 @@ def vehicle_rows(feed):
         num = str(car.get("vehicle_number", "?"))
         out = is_retired(status)
         repair = is_repairing(status, on_track)
+        laps = int(car.get("laps_completed", 0))
         rows.append({
             "pos": int(car.get("running_position", 0)),
             "num": num,
-            "laps": int(car.get("laps_completed", 0)),
+            "laps": laps,
+            "on_lead": is_on_lead_lap(laps, leader_laps, car.get("delta")),
             "out": out,
             "repair": repair,
             "dvp": bool(car.get("is_on_dvp", False)),
@@ -252,6 +280,34 @@ def stage_for_lap(lap_number, stage1, stage2, total):
     return 3
 
 
+def session_label(feed, stage_num):
+    # CF run_type: 1 = practice, 2 = qualifying, 3 = race.
+    run_type = int(feed.get("run_type", 0))
+    run_name = str(feed.get("run_name", "")).upper()
+    if run_type == 2 or "QUAL" in run_name:
+        return "QUAL"
+    if run_type == 1 or "PRACTICE" in run_name:
+        return "PRAC"
+    if stage_num > 0:
+        return "STAGE " + str(stage_num)
+    return "STAGE"
+
+
+def short_track(name, limit = 8):
+    # Header is only ~42px — full race titles never fit; track city/name does.
+    text = str(name).upper()
+    text = text.replace(" INTERNATIONAL SPEEDWAY", "")
+    text = text.replace(" MOTOR SPEEDWAY", "")
+    text = text.replace(" RACEWAY", "")
+    text = text.replace(" SPEEDWAY", "")
+    text = text.replace(" SUPER SPEEDWAY", "")
+    text = text.replace(" SUPERSPEEDWAY", "")
+    text = text.strip()
+    if len(text) > limit:
+        text = text[:limit]
+    return text
+
+
 def build_state(series, race, feed):
     stage = feed.get("stage", {})
     stage1 = int(race.get("stage_1_laps", 0))
@@ -265,9 +321,11 @@ def build_state(series, race, feed):
             stage2,
             int(feed.get("laps_in_race", race.get("scheduled_laps", 0))),
         )
+    track = feed.get("track_name", race.get("track_name", ""))
     return {
         "ok": True,
         "series": series,
+        "track": short_track(track),
         "flag_state": int(feed.get("flag_state", 0)),
         "lap_number": int(feed.get("lap_number", 0)),
         "laps_in_race": int(feed.get("laps_in_race", race.get("scheduled_laps", 0))),
@@ -275,6 +333,8 @@ def build_state(series, race, feed):
         "stage1": stage1,
         "stage2": stage2,
         "stage3": stage3,
+        "run_type": int(feed.get("run_type", 0)),
+        "session": session_label(feed, stage_num),
         "rows": vehicle_rows(feed),
     }
 
@@ -394,8 +454,6 @@ def pylon(c, ctx):
         c.text("NO FIELD", 4, 12, font = "4x5", color = COLORS["muted"])
         return
 
-    leader_laps = rows[0]["laps"]
-
     # Header: centered series + stage + laps-to-go (or FINISHED).
     finished = togo <= 0 or flag == 5 or flag == 9
     header_w = 42
@@ -406,14 +464,29 @@ def pylon(c, ctx):
         header_bg = flag_color(flag) if flag > 0 else COLORS["panel"]
         text_col = header_text_color(flag) if flag > 0 else COLORS["text"]
     series = SERIES_SHORT.get(state["series"], state["series"])
-    stage_num = state.get("stage_num", 0)
-    stage_txt = "STAGE " + str(stage_num) if stage_num > 0 else "STAGE"
+    session = state.get("session", "STAGE")
+    track = state.get("track", "")
+    run_type = state.get("run_type", 3)
     c.rect(0, 0, header_w - 1, c.height - 1, fill = header_bg)
-    c.text(series, header_w // 2, 1, font = "4x5", color = text_col, align = "center")
-    if finished:
-        c.text("FINISHED", header_w // 2, 14, font = "4x5", color = text_col, align = "center")
+    if finished and run_type == 3:
+        c.text(series, header_w // 2, 1, font = "4x5", color = text_col, align = "center")
+        if track != "":
+            c.text(track, header_w // 2, 10, font = "4x5", color = text_col, align = "center")
+            c.text("FINISHED", header_w // 2, 20, font = "4x5", color = text_col, align = "center")
+        else:
+            c.text("FINISHED", header_w // 2, 14, font = "4x5", color = text_col, align = "center")
+    elif run_type in [1, 2] or togo >= 500:
+        # Practice/qual — series + short track + PRAC/QUAL (race titles never fit).
+        c.text(series, header_w // 2, 1, font = "4x5", color = text_col, align = "center")
+        if track != "":
+            c.text(track, header_w // 2, 10, font = "4x5", color = text_col, align = "center")
+            c.text(session, header_w // 2, 20, font = "6x8", color = text_col, align = "center")
+        else:
+            c.text(session, header_w // 2, 14, font = "6x8", color = text_col, align = "center")
     else:
-        c.text(stage_txt, header_w // 2, 8, font = "4x5", color = text_col, align = "center")
+        # Race: laps-to-go wins the space — no room for track without dropping series.
+        c.text(series, header_w // 2, 1, font = "4x5", color = text_col, align = "center")
+        c.text(session, header_w // 2, 8, font = "4x5", color = text_col, align = "center")
         c.text(str(togo), header_w // 2, 16, font = "6x8", color = text_col, align = "center")
         c.text("TO GO", header_w // 2, 26, font = "4x5", color = text_col, align = "center")
     c.rect(header_w, 0, header_w, c.height - 1, fill = COLORS["text"])
@@ -437,11 +510,12 @@ def pylon(c, ctx):
     if col_w > 56:
         col_w = 56
 
-    # First car a lap+ down — soft amber cut drawn on that car exactly
-    # (not snapped to the column boundary).
+    # First car off the lead lap — soft amber cut drawn on that car exactly
+    # (not snapped to the column boundary). Uses the same on_lead rule as
+    # car-number coloring (CF delta when present, else laps >= leader-1).
     first_lapped = -1
     for i in range(n):
-        if rows[i]["laps"] < leader_laps:
+        if not rows[i]["on_lead"]:
             first_lapped = i
             break
 
@@ -451,7 +525,7 @@ def pylon(c, ctx):
         x = col_x0 + col * col_w
         y = 1 + r * row_h
         row = rows[i]
-        on_lead = row["laps"] >= leader_laps
+        on_lead = row["on_lead"]
 
         if col == 0:
             # Static top-5 segment gets a highlighted backing panel.
