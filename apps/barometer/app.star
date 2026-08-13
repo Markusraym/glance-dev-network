@@ -127,19 +127,30 @@ def pressure(c, ctx):
     sz = 24 if c.width >= 128 else 16
     c.image("GAUGE.png", 1, (c.height - sz) // 2, w = sz, h = sz)
 
+    sign = "+" if delta >= 0 else ""
+    change = sign + str(int(delta * 10) / 10.0) + " IN 3H"
+
     if c.width >= 128:
-        # Trend column first, then the reading fitted to what is left, then
-        # the detail line on its own row.
-        c.text_fit(trend, c.width - 6, 3, ["10x16", "6x8"], color = col,
-                   align = "right", maxw = c.width - 130)
-        c.text_fit(str(int(now)) + " HPA", 30, 4, ["16x20", "10x16", "6x8"],
-                   color = "#DCE4F4", maxw = c.width - 130)
-        sign = "+" if delta >= 0 else ""
-        c.text(sign + str(int(delta * 10) / 10.0) + " IN 3H   " + note,
-               c.width - 6, 24, font = "5x7", color = "#96A0B8",
+        # Everything sits in the column right of the dial (x=28 onward). The
+        # detail line used to be right-aligned from x=186 with no left bound,
+        # and at its longest -- "-1.0 IN 3H   TURNING UNSETTLED", 30 characters
+        # -- it reached back to x=6 and printed underneath the gauge face, so
+        # the leading digits were lost in the dial.
+        #
+        # Three rows instead: reading 0-15, trend and change 17-23, outlook
+        # 25-31. Every string is measured against the 158px the dial leaves,
+        # and the widest of each row fits it, so nothing clips at any state.
+        c.text(str(int(now)) + " HPA", 28, 0, font = "10x16",
+               color = "#DCE4F4")
+        c.text(trend, 28, 17, font = "5x7", color = col)
+        c.text(change, c.width - 6, 17, font = "5x7", color = "#96A0B8",
                align = "right")
+        c.text(note, 28, 25, font = "5x7", color = "#7F8CA8")
     else:
         c.text_fit(str(int(now)), c.width - 2, 3, ["16x20", "10x16"],
                    color = "#DCE4F4", align = "right", maxw = c.width - 20)
-        c.text_fit(trend, c.width - 2, 25, ["4x5", "3x4"], color = col,
-                   align = "right", maxw = c.width - 4)
+        # 4x5 only, never 3x4: that font has no space glyph, so "FALLING FAST"
+        # would render as one run-on word. It fits 4x5 at 57px anyway.
+        tf = _fit_clip(c, trend, ["4x5"], c.width - 4)
+        c.text(tf[1], c.width - 2, 25, font = tf[0], color = col,
+               align = "right")
