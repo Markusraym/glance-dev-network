@@ -16,10 +16,4 @@ pages: [bell]
 assets:
   - BELL.png
 
-inputs:
-  - key: utcoffset
-    type: number
-    app_input_type: free-text
-    label: Eastern offset
-    default: -4
-    help: "-4 during daylight saving, -5 in winter."
+inputs: []
