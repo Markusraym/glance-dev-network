@@ -20,7 +20,10 @@ app gets `status_code == 0` and decides what to draw. Only *programming* errors
 Responses with a 2xx status are cached on disk under ~/.gdn/httpcache keyed by
 (url, params, headers) for `ttl_seconds`, so repeated renders don't refetch.
 The cache is on disk (not in-process) because every sandboxed render is a fresh
-subprocess.
+subprocess. Within one render, every URL is also memoized in memory — including
+3xx/4xx/timeouts — because a six-page app that retries the same 404 once per
+page would otherwise blow MAX_REQUESTS_PER_RUN. Disk cache stays 2xx-only so a
+temporary outage is not stored for five minutes.
 """
 from __future__ import annotations
 
@@ -182,6 +185,7 @@ class HttpHost:
 
     def __init__(self):
         self._count = 0
+        self._mem = {}
 
     def get(self, url, headers=None, params=None, ttl_seconds=DEFAULT_TTL) -> dict:
         if not isinstance(url, str) or not url.startswith(("http://", "https://")):
@@ -202,6 +206,10 @@ class HttpHost:
         if cached is not None:
             return _response(*cached)
 
+        hit = self._mem.get(key)
+        if hit is not None:
+            return hit
+
         self._count += 1
         if self._count > MAX_REQUESTS_PER_RUN:
             raise HttpLimit(f"http limit: at most {MAX_REQUESTS_PER_RUN} "
@@ -210,8 +218,12 @@ class HttpHost:
             r = _fetch(url, headers, params)
         except requests.RequestException as e:
             # timeout / DNS / refused / all proxies failed — report, don't crash the render
-            return _response(0, "", error=f"{type(e).__name__}: {e}"[:300])
+            out = _response(0, "", error=f"{type(e).__name__}: {e}"[:300])
+            self._mem[key] = out
+            return out
         body = r.text[:MAX_BODY_BYTES]
         if 200 <= r.status_code < 300 and ttl > 0:
             _cache_write(key, r.status_code, body)
-        return _response(r.status_code, body)
+        out = _response(r.status_code, body)
+        self._mem[key] = out
+        return out
