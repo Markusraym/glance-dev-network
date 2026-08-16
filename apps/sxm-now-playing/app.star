@@ -7,16 +7,14 @@
 # returns recently-played tracks newest-first with no auth needed; results[0]
 # was ~2.5 minutes old when tested, close enough to call "now playing".
 #
-# Five fixed pages (channel_1..channel_5), same pattern as apps/now-playing:
-# the manifest's "channels" input is a native HTML multi-select, which can't
-# have the same option picked twice - duplicates are impossible by
-# construction, not by extra validation code. "Up to 5" is enforced here by
-# just taking the first 5 entries; anything past that is silently ignored.
-#
-# NOTE: browsers return a multi-select's chosen options in DOCUMENT order (the
-# order they appear in the dropdown list), not the order the user clicked
-# them - so channel_1 is whichever selected channel sorts first by channel
-# number among your picks, not necessarily the first one you picked.
+# Five fixed pages (channel_1..channel_5), each backed by its own single-
+# select "channelN" input rather than one shared multi-select. A multi-select
+# picking all 5 at once sounds simpler, but browsers return its choices in
+# DOCUMENT order (the order they appear in the dropdown), not click order -
+# so swapping just one station out meant re-scanning a 164-entry list to find
+# and re-check everything, with no guarantee it even landed back in the same
+# slot. Five separate dropdowns cost more manifest boilerplate but make each
+# slot's identity explicit and swapping a single station a one-field edit.
 
 # ---------- small input helper ----------
 # An unset/cleared input can come back as None even with a fallback given to
@@ -130,7 +128,6 @@ CHANNEL_DEEPLINKS = {
     "150 - Bill Gaither's enLighten": "billgaithersenlighten",
     "152 - Caliente": "caliente",
     "153 - Águila": "aguila",
-    "154 - En Vivo": "envivo",
     "155 - Latin Vault": "latinvault",
     "163 - Attitude Franco": "attitudefranco",
     "164 - Mixtape: North": "mixtapenorth",
@@ -151,6 +148,7 @@ CHANNEL_DEEPLINKS = {
     "315 - Red Hot Chili Peppers": "redhotchilipeppers",
     "330 - SiriusXM Silk 330": "siriusxmsilk330",
     "332 - Shaggy Boombastic Radio": "shaggyboombasticradio",
+    "340 - Radio Monaco": "radiomonaco",
     "341 - Utopia": "utopia",
     "349 - Bakersfield Beat": "bakersfieldbeat",
     "350 - Red White & Booze": "redwhitebooze",
@@ -203,28 +201,19 @@ CHANNEL_DEEPLINKS = {
 
 # ---------- input parsing ----------
 
-def parse_channels(ctx):
-    raw = _s(ctx, "channels", "")
-    if raw == "":
-        return []
-    parts = raw.split(",")
-    seen = {}
-    out = []
-    for p in parts:
-        entry = p.strip()
-        if entry == "":
-            continue
-        # Falls back to treating the raw entry as the deeplink itself if it's
-        # not a recognized "number - name" choice, so a bare deeplink (e.g.
-        # from --input on the CLI) still works.
-        deeplink = CHANNEL_DEEPLINKS.get(entry, entry.lower())
-        if deeplink == "" or deeplink in seen:
-            continue
-        seen[deeplink] = True
-        out.append(deeplink)
-        if len(out) >= 5:
-            break
-    return out
+CHANNEL_INPUT_KEYS = ["channel1", "channel2", "channel3", "channel4", "channel5"]
+
+def channel_deeplink_for_slot(ctx, index):
+    entry = _s(ctx, CHANNEL_INPUT_KEYS[index], "(none)").strip()
+    if entry == "" or entry == "(none)":
+        return None
+    # Falls back to treating the raw entry as the deeplink itself if it's
+    # not a recognized "number - name" choice, so a bare deeplink (e.g.
+    # from --input on the CLI) still works.
+    deeplink = CHANNEL_DEEPLINKS.get(entry, entry.lower())
+    if deeplink == "":
+        return None
+    return deeplink
 
 # ---------- network ----------
 
@@ -241,29 +230,142 @@ def draw_error(c, msg):
     c.fill("#000000")
     c.text(msg.upper(), 4, 12, font = "5x7", color = "red", align = "left")
 
+# ---------- genre-colored header ----------
+# The station lookup returns a "genres" list that was previously fetched and
+# thrown away - a loose, vibe-based palette per genre (not anything from
+# SiriusXM's own branding), same spirit as the decade colors in
+# apps/billboard-anniversaries. Only the first listed genre is used.
+
+GENRE_COLORS = {
+    "rock": "#8B0000",
+    "pop": "#FF1493",
+    "country": "#8B5A2B",
+    "hiphop": "#FF8C00",
+    "world": "#008080",
+    "jazz": "#4B0082",
+    "canadian": "#A8DADC",
+    "dance": "#DA70D6",
+    "comedy": "#FFEB3B",
+    "christian": "#87CEEB",
+    "kids": "#32CD32",
+    "holiday": "#1E7B34",
+    "more": "#555555",
+}
+DEFAULT_HEADER_COLOR = "#333333"  # no genre listed
+
+def genre_color(channel):
+    genres = channel.get("genres", [])
+    if len(genres) == 0:
+        return DEFAULT_HEADER_COLOR
+    return GENRE_COLORS.get(genres[0], DEFAULT_HEADER_COLOR)
+
+def brightness(hex_color):
+    r = int(hex_color[1:3], 16)
+    g = int(hex_color[3:5], 16)
+    b = int(hex_color[5:7], 16)
+    return (r * 299 + g * 587 + b * 114) // 1000
+
+def text_color_for(bg_hex):
+    # Several genre colors (comedy's yellow, canadian's icy blue) are bright
+    # enough that white text would read weak - same fix as
+    # apps/mlb-playoff-picture's text_color_for.
+    if brightness(bg_hex) > 150:
+        return "black"
+    return "white"
+
+def fit_font(c, text, options, maxw):
+    # First font in `options` that fits at full size; falls back to the last
+    # (smallest) if none do - so most channel names stay at the normal "4x5"
+    # size and only the handful of long ones (e.g. "Sebastian Maniscalco's
+    # Comedy Radio") drop down.
+    for f in options:
+        if c.text_width(text, f) <= maxw:
+            return f
+    return options[len(options) - 1]
+
+def fit_text(c, text, font, maxw):
+    # Even the smallest font can't fit every channel name (some run 35+
+    # chars) - truncate on actual pixel width as the last resort so the
+    # header text can never run off the panel edge.
+    if c.text_width(text, font) <= maxw:
+        return text
+    for i in range(len(text), 0, -1):
+        candidate = text[:i] + "..."
+        if c.text_width(candidate, font) <= maxw:
+            return candidate
+    return "..."
+
 def draw_header(c, channel):
     name = channel.get("name", "?")
     number = channel.get("number", "")
-    c.text((str(number) + "-" + name).upper(), 2, 1, font = "4x5", color = "white", align = "left")
+    text = (str(number) + "-" + name).upper()
+    maxw = 124
+    font = fit_font(c, text, ["4x5", "picopixel"], maxw)
+    bg = genre_color(channel)
+    c.rect(0, 0, 127, 6, fill = bg)
+    c.text(fit_text(c, text, font, maxw), 2, 1, font = font, color = text_color_for(bg), align = "left")
     c.line(0, 7, 127, 7, "#333333")
 
-def draw_now_playing(c, channel, track):
+# ---------- "played N min ago" ----------
+# xmplaylist timestamps are plain UTC ("...Z"), so unlike apps/weather-alerts
+# there's no zone offset to undo - just the date/time fields themselves.
+
+def days_from_civil(y, m, d):
+    yy = (y - 1) if m <= 2 else y
+    era = (yy // 400) if yy >= 0 else ((yy - 399) // 400)
+    yoe = yy - era * 400
+    mm = (m + 9) if m <= 2 else (m - 3)
+    doy = (153 * mm + 2) // 5 + d - 1
+    doe = yoe * 365 + yoe // 4 - yoe // 100 + doy
+    return era * 146097 + doe - 719468
+
+def iso_to_epoch_seconds(iso_time):
+    y = int(iso_time[0:4])
+    mo = int(iso_time[5:7])
+    d = int(iso_time[8:10])
+    h = int(iso_time[11:13])
+    mi = int(iso_time[14:16])
+    s = int(iso_time[17:19])
+    return days_from_civil(y, mo, d) * 86400 + h * 3600 + mi * 60 + s
+
+def played_ago_label(iso_time, now_unix):
+    if iso_time == None or iso_time == "":
+        return ""
+    age_seconds = now_unix - iso_to_epoch_seconds(iso_time)
+    if age_seconds < 60:
+        return "JUST NOW"
+    minutes = age_seconds // 60
+    if minutes == 1:
+        return "1 MIN AGO"
+    return str(minutes) + " MIN AGO"
+
+def draw_now_playing(c, channel, track, played_at, now_unix):
     draw_header(c, channel)
 
     artists = ", ".join(track.get("artists", []))
     title = track.get("title", "?")
 
-    c.text_wrapped(title.upper(), 2, 9, 124, font = "5x7", color = "amber", line_gap = 1, max_lines = 2)
+    lines = c.text_wrapped(title.upper(), 2, 9, 124, font = "5x7", color = "amber", line_gap = 1, max_lines = 2)
+
+    # A 2-line title already fills the space down to the artist line; only a
+    # 1-line title leaves the ~10px gap this row needs - the equalizer and
+    # timestamp used to just sit unused in that gap otherwise.
+    if lines == 1:
+        draw_equalizer(c, 8, 20, "#555555")
+        ago = played_ago_label(played_at, now_unix)
+        if ago != "":
+            c.text(ago, 124, 17, font = "picopixel", color = "#555555", align = "right")
+
     c.text_wrapped(artists.upper(), 2, 27, 124, font = "4x5", color = "#888888", max_lines = 1)
 
 def _page(c, ctx, index):
     c.fill("#000000")
-    channels = parse_channels(ctx)
-    if index >= len(channels):
+    deeplink = channel_deeplink_for_slot(ctx, index)
+    if deeplink == None:
         draw_error(c, "no channel set")
         return
 
-    resp = fetch_now_playing(channels[index])
+    resp = fetch_now_playing(deeplink)
     if resp["status_code"] == 404:
         draw_error(c, "channel not found")
         return
@@ -284,7 +386,7 @@ def _page(c, ctx, index):
         return
 
     latest = results[0]
-    draw_now_playing(c, channel, latest.get("track", {}))
+    draw_now_playing(c, channel, latest.get("track", {}), latest.get("timestamp"), ctx.now.unix)
 
 # ---------- pages ----------
 
