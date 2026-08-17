@@ -1,0 +1,46 @@
+# GDN app manifest (v2). This file is the source of truth for how your app is
+# configured and reviewed. Edit it in VS Code or the Studio.
+gdn: 1
+id: go-gophers
+version: 0.1.0
+name: Go Gophers
+author: Chad Petrie
+description: Minnesota gameday sign — block M, SKI-U-MAH!, and Goldy, in true maroon and gold.
+category: Lifestyle
+entry: app.star
+
+# Panel geometry. Height is 32 (fixed); width up to 384.
+width: 192
+height: 32
+
+# Seconds between re-renders (minimum 60 for public apps).
+refresh: 3600
+
+# Pages the panel rotates through, in order. app.star must define a function per name.
+pages: [sign]
+
+# What the client fills in at install time.
+#   type            — the data type: string | number | choice
+#   app_input_type  — the UI widget the client sees. One of:
+#                     free-text | dropdown | selection | checkbox | date | date-past | color
+#                     (optional; if omitted the form infers it from `type`)
+inputs:
+  - key: message
+    type: string
+    app_input_type: free-text
+    label: Message
+    default: "SKI-U-MAH!"
+  - key: maroon
+    type: string
+    app_input_type: color
+    label: Maroon
+    default: "#7A0019"
+  - key: gold
+    type: string
+    app_input_type: color
+    label: Gold
+    default: "#FFCC33"
+
+assets:
+  - m_logo.png
+  - goldy.png
