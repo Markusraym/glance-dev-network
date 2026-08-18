@@ -1,0 +1,28 @@
+id: iss-sighting
+name: ISS Next Sighting
+author: cfdmb
+description: When and where to look up for the next naked-eye-visible pass of the International Space Station over your zip code.
+width: 128
+height: 32
+refresh: 660
+pages:
+  - intro
+  - sighting
+  - path
+  - sighting2
+  - path2
+  - sighting3
+  - path3
+  - crew
+inputs:
+  - key: zip
+    type: string
+    app_input_type: free-text
+    label: Zip code
+    default: ""
+    help: A US zip code - used to look up your latitude/longitude.
+  - key: apikey
+    type: string
+    app_input_type: api-key
+    label: N2YO API key
+    help: Free key from n2yo.com - sign up, then Account > API Key.
