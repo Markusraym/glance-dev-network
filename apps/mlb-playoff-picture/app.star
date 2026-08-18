@@ -89,6 +89,15 @@ def badge_color(team_id):
             best_brightness = b
     return best
 
+def text_color_for(team_id):
+    # badge_color already picks each team's darkest option, but a few teams
+    # (TB's Columbia Blue, HOU/ATH/PIT/SD's gold/orange) have no dark option
+    # at all - white text on those reads weak. Fall back to black above this
+    # brightness instead of assuming white always works.
+    if brightness(badge_color(team_id)) > 150:
+        return "black"
+    return "white"
+
 # ---------- network (keyless) ----------
 
 def fetch_standings(standings_type, season):
@@ -193,11 +202,28 @@ def record_label(t):
 def city_line(city_name):
     return "GAMES IN " + city_name
 
-def draw_badge(c, x, y, team_id, text):
+def fit_text(c, text, font, maxw):
+    # Truncates on actual pixel width, not a guessed character count - long
+    # nicknames like "DIAMONDBACKS" would otherwise overflow the quadrant.
+    if c.text_width(text, font) <= maxw:
+        return text
+    for i in range(len(text), 0, -1):
+        candidate = text[:i] + "..."
+        if c.text_width(candidate, font) <= maxw:
+            return candidate
+    return "..."
+
+def draw_bye_quadrant(c, x0, y0, x1, y1, team_id, text):
     text = text.upper()
-    w = c.text_width(text, font = "4x5")
-    c.rect(x - 1, y - 1, x + w, y + 5, fill = badge_color(team_id))
-    c.text(text, x, y, font = "4x5", color = "white", align = "left")
+    c.rect(x0, y0, x1, y1, fill = badge_color(team_id))
+    # A near-black team color (e.g. CWS) would otherwise blend into the
+    # panel's own black background - a light outline keeps every quadrant
+    # visually framed regardless of how dark that team's color is.
+    c.rect(x0, y0, x1, y1, outline = "#888888")
+    cx = (x0 + x1) // 2
+    cy = y0 + (y1 - y0 - 5) // 2  # roughly vertical-center the 6px-tall "4x5" font
+    maxw = x1 - x0 - 4  # small margin so text never touches the divider lines
+    c.text(fit_text(c, text, "4x5", maxw), cx, cy, font = "4x5", color = text_color_for(team_id), align = "center")
 
 def draw_split_bg(c, y, away_id, home_id):
     c.rect(0, y - 1, 64, y + 5, fill = badge_color(away_id))
@@ -208,8 +234,8 @@ def draw_matchup_row(c, y, away_id, away_text, home_id, home_text):
     away_text = away_text.upper()
     home_text = home_text.upper()
     draw_split_bg(c, y, away_id, home_id)
-    c.text(away_text, 32, y, font = "4x5", color = "white", align = "center")
-    c.text(home_text, 96, y, font = "4x5", color = "white", align = "center")
+    c.text(away_text, 32, y, font = "4x5", color = text_color_for(away_id), align = "center")
+    c.text(home_text, 96, y, font = "4x5", color = text_color_for(home_id), align = "center")
 
 def gms_line(city_name):
     return "GAMES 1 & 2 IN " + city_name
@@ -223,9 +249,9 @@ def draw_ds_row(c, y, bye_id, bye_text, wc_a_id, wc_a_text, wc_b_id, wc_b_text):
     c.rect(32, y - 1, 64, y + 5, fill = badge_color(wc_b_id))
     c.rect(64, y - 1, 127, y + 5, fill = badge_color(bye_id))
 
-    c.text(wc_a_text, 16, y, font = "4x5", color = "white", align = "center")
-    c.text(wc_b_text, 48, y, font = "4x5", color = "white", align = "center")
-    c.text(bye_text, 96, y, font = "4x5", color = "white", align = "center")
+    c.text(wc_a_text, 16, y, font = "4x5", color = text_color_for(wc_a_id), align = "center")
+    c.text(wc_b_text, 48, y, font = "4x5", color = text_color_for(wc_b_id), align = "center")
+    c.text(bye_text, 96, y, font = "4x5", color = text_color_for(bye_id), align = "center")
 
     c.line(32, y - 1, 32, y + 5, "black")
     c.line(64, y - 1, 64, y + 5, "black")
@@ -333,21 +359,25 @@ def draw_byes_page(c, ctx):
     nicknames = team_nickname_map()
 
     c.rect(0, 0, 127, 6, fill = "white")
-    c.text("MLB FIRST ROUND BYES", 64, 1, font = "4x5", color = "black", align = "center")
-
-    c.line(64, 7, 64, 31, "#555555")
+    c.text("FIRST ROUND BYES", 64, 1, font = "4x5", color = "black", align = "center")
+    c.text("AL", 2, 1, font = "4x5", color = "black", align = "left")
+    c.text("NL", 125, 1, font = "4x5", color = "black", align = "right")
 
     al1_id = al_seeds[0].get("team", {}).get("id", -1)
     nl1_id = nl_seeds[0].get("team", {}).get("id", -1)
     al2_id = al_seeds[1].get("team", {}).get("id", -1)
     nl2_id = nl_seeds[1].get("team", {}).get("id", -1)
 
-    y = 10
-    draw_badge(c, 6, y, al1_id, "1 " + team_label(al_seeds[0], nicknames))
-    draw_badge(c, 72, y, nl1_id, "1 " + team_label(nl_seeds[0], nicknames))
-    y += 10
-    draw_badge(c, 6, y, al2_id, "2 " + team_label(al_seeds[1], nicknames))
-    draw_badge(c, 72, y, nl2_id, "2 " + team_label(nl_seeds[1], nicknames))
+    # Each seed gets its own full-bleed quadrant - the whole area filled with
+    # the team's color, name centered on top - instead of a small badge
+    # floating in mostly-empty black space.
+    draw_bye_quadrant(c, 0, 7, 63, 18, al1_id, "1 " + team_label(al_seeds[0], nicknames))
+    draw_bye_quadrant(c, 0, 19, 63, 31, al2_id, "2 " + team_label(al_seeds[1], nicknames))
+    draw_bye_quadrant(c, 64, 7, 127, 18, nl1_id, "1 " + team_label(nl_seeds[0], nicknames))
+    draw_bye_quadrant(c, 64, 19, 127, 31, nl2_id, "2 " + team_label(nl_seeds[1], nicknames))
+
+    c.line(64, 7, 64, 31, "#888888")
+    c.line(0, 18, 127, 18, "#888888")
 
 # ---------- pages ----------
 
@@ -392,8 +422,9 @@ def bubble_gb_label(t):
 
 def draw_bubble_row(c, y, team_id, left_text, right_text):
     c.rect(0, y - 1, 127, y + 5, fill = badge_color(team_id))
-    c.text(left_text, 3, y, font = "4x5", color = "white", align = "left")
-    c.text(right_text, 124, y, font = "4x5", color = "white", align = "right")
+    tc = text_color_for(team_id)
+    c.text(left_text, 3, y, font = "4x5", color = tc, align = "left")
+    c.text(right_text, 124, y, font = "4x5", color = tc, align = "right")
 
 def draw_bubble_page(c, ctx, league_id, league_label):
     c.fill("black")
