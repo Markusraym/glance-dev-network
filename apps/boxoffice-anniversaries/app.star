@@ -146,6 +146,66 @@ def extract_top3(html):
         pos = title_end
     return movies
 
+def _all_digits(s):
+    if len(s) == 0:
+        return False
+    for i in range(len(s)):
+        if s[i] < "0" or s[i] > "9":
+            return False
+    return True
+
+def _one_dec(v):
+    whole = int(v)
+    tenth = int((v - float(whole)) * 10.0 + 0.5)
+    if tenth > 9:
+        whole = whole + 1
+        tenth = 0
+    return str(whole) + "." + str(tenth)
+
+def format_gross(gross_str):
+    # "$12,345,678" -> "$12.3M", "$845,000" -> "$845K". Returns "" if the
+    # scraped text isn't a clean dollar figure, so a bad parse just omits
+    # the gross instead of crashing the render (Starlark has no try/except).
+    if gross_str == "":
+        return ""
+    digits = gross_str.replace("$", "").replace(",", "")
+    if not _all_digits(digits):
+        return ""
+    value = float(int(digits))
+    if value >= 1000000.0:
+        return "$" + _one_dec(value / 1000000.0) + "M"
+    if value >= 1000.0:
+        return "$" + str(int(value / 1000.0 + 0.5)) + "K"
+    return "$" + str(int(value))
+
+def medal_color(rank):
+    if rank == 1:
+        return "#FFD700"  # gold
+    if rank == 2:
+        return "#C0C0C0"  # silver
+    if rank == 3:
+        return "#CD7F32"  # bronze
+    return "white"
+
+def decade_color(year):
+    # Same era palette as billboard-anniversaries, so the two "anniversary"
+    # apps read as a matched set.
+    decade = (year // 10) * 10
+    if decade <= 1960:
+        return "#FFA500"
+    elif decade == 1970:
+        return "#FFD700"
+    elif decade == 1980:
+        return "#FF69B4"
+    elif decade == 1990:
+        return "#40E0D0"
+    elif decade == 2000:
+        return "#1E90FF"
+    elif decade == 2010:
+        return "#DA70D6"
+    else:
+        return "#00FF7F"
+
 def fit_text(c, text, font, maxw):
     # Truncates on actual pixel width (via c.text_width), not a guessed
     # character count - a fixed char-count cutoff still overflows once the
@@ -168,7 +228,7 @@ def render_chart_page(c, ctx, years_ago):
 
     year = ctx.now.year - years_ago
     label = str(years_ago) + " YRS AGO (" + str(year) + ")"
-    content_y = c.header(label.upper())
+    content_y = c.header(label.upper(), bg = decade_color(year))
 
     date_path = anniversary_chart_date(ctx, years_ago)
     resp = fetch_boxoffice_chart(date_path)
@@ -181,12 +241,28 @@ def render_chart_page(c, ctx, years_ago):
         draw_chart_unavailable(c)
         return
 
+    # A 10px header plus 3 fixed rows leaves ~10px for the last row - never
+    # enough room for a genuine 2nd line (6px/line), so wrapping here would
+    # just cut a title off mid-word with no "..." to show it happened. Every
+    # row stays single-line and truncates instead, which is always legible.
+    # Row height is set by the rank badge (picopixel: 5px text + 2px pad =
+    # 7px) since it's taller than the 6px title font it sits beside.
+    line_h = 7
     y = content_y
     rank = 1
     for m in movies:
-        line = str(rank) + ". " + m["title"].upper()
-        c.text(fit_text(c, line, "4x5", 126), 1, y, font = "4x5", color = "white")
-        y += 6
+        gross_str = format_gross(m["gross"])
+        gross_w = (c.text_width(gross_str, "4x5") + 2) if gross_str else 0
+
+        badge_w = c.badge(str(rank), 1, y, color = "black", bg = medal_color(rank), font = "picopixel", pad = 2)
+
+        title = m["title"].upper()
+        title_x = 1 + badge_w + 2
+        title_maxw = 127 - title_x - gross_w
+        c.text(fit_text(c, title, "4x5", title_maxw), title_x, y, font = "4x5", color = "white")
+        if gross_str:
+            c.text(gross_str, 127, y, font = "4x5", color = "#888888", align = "right")
+        y += line_h
         rank += 1
 
 def draw_spotlights(c):
