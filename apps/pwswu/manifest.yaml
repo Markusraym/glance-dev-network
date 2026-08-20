@@ -15,7 +15,7 @@ inputs:
     app_input_type: dropdown
     label: Temperature Unit
     choices: [Fahrenheit (English / Imperial), Celsius (Metric)]
-    default: Fahrenheit (English / Imperial
+    default: Fahrenheit (English / Imperial)
   - key: apikey
     label: Weather Underground API Key
     type: api-key
