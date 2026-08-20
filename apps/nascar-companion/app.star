@@ -347,15 +347,30 @@ def draw_error(c, title, sub):
 
 def draw_chrome(c, state, title, right = ""):
     c.rect(0, 0, c.width - 1, 9, fill = COLORS["panel"])
-    c.image("checkered.png", 2, 1, w = 14, h = 8)
-    if state["live"] and state["flag_state"] > 0:
-        draw_flag_icon(c, state["flag_state"], 18, 0)
+    flag = int(state.get("flag_state", 0))
+    live = bool(state.get("live", False))
+    finished = flag == 5 or flag == 9
+    if live and not finished:
+        # Live race pages: status flag only — skip the brand checkered.
+        if flag > 0:
+            draw_flag_icon(c, flag, 2, 0)
+            c.text(title, 14, 2, font = "5x7", color = COLORS["text"])
+        else:
+            c.text(title, 2, 2, font = "5x7", color = COLORS["text"])
+    elif live and flag > 0:
+        # Finished / results: keep brand checkered + checkered status flag.
+        c.image("checkered.png", 2, 1, w = 14, h = 8)
+        draw_flag_icon(c, flag, 18, 0)
         c.text(title, 30, 2, font = "5x7", color = COLORS["text"])
     else:
+        c.image("checkered.png", 2, 1, w = 14, h = 8)
         c.text(title, 20, 2, font = "5x7", color = COLORS["accent"])
     if right != "":
         c.text(right, c.width - 3, 2, font = "5x7", color = COLORS["muted"], align = "right")
-    accent = flag_color(state["flag_state"]) if state["live"] else COLORS["accent"]
+    if live and flag > 0:
+        accent = flag_color(flag)
+    else:
+        accent = COLORS["accent"]
     c.rect(0, 10, c.width - 1, 10, fill = accent)
 
 
@@ -478,6 +493,9 @@ def draw_car_badge(c, x, y, num, mfg, size = 11):
     if n == "51":
         c.image("car-51.png", x, y, w = s, h = s)
         return s
+    if n == "52":
+        c.image("car-52.png", x, y, w = s, h = s)
+        return s
     if n == "54":
         c.image("car-54.png", x, y, w = s, h = s)
         return s
@@ -508,14 +526,23 @@ def draw_car_badge(c, x, y, num, mfg, size = 11):
     if n == "8":
         c.image("car-8.png", x, y, w = s, h = s)
         return s
+    if n == "87":
+        c.image("car-87.png", x, y, w = s, h = s)
+        return s
     if n == "88":
         c.image("car-88.png", x, y, w = s, h = s)
         return s
     if n == "9":
         c.image("car-9.png", x, y, w = s, h = s)
         return s
+    if n == "91":
+        c.image("car-91.png", x, y, w = s, h = s)
+        return s
     if n == "97":
         c.image("car-97.png", x, y, w = s, h = s)
+        return s
+    if n == "98":
+        c.image("car-98.png", x, y, w = s, h = s)
         return s
     return draw_number_plate(c, x, y + 1, n, mfg, s)
 
@@ -616,6 +643,9 @@ def draw_car_badge_small(c, x, y, num, mfg, size = 10):
     if n == "51":
         c.image("car-51-sm.png", x, y, w = s, h = s)
         return s
+    if n == "52":
+        c.image("car-52-sm.png", x, y, w = s, h = s)
+        return s
     if n == "54":
         c.image("car-54-sm.png", x, y, w = s, h = s)
         return s
@@ -646,14 +676,23 @@ def draw_car_badge_small(c, x, y, num, mfg, size = 10):
     if n == "8":
         c.image("car-8-sm.png", x, y, w = s, h = s)
         return s
+    if n == "87":
+        c.image("car-87-sm.png", x, y, w = s, h = s)
+        return s
     if n == "88":
         c.image("car-88-sm.png", x, y, w = s, h = s)
         return s
     if n == "9":
         c.image("car-9-sm.png", x, y, w = s, h = s)
         return s
+    if n == "91":
+        c.image("car-91-sm.png", x, y, w = s, h = s)
+        return s
     if n == "97":
         c.image("car-97-sm.png", x, y, w = s, h = s)
+        return s
+    if n == "98":
+        c.image("car-98-sm.png", x, y, w = s, h = s)
         return s
     # Keep fallback plates inside the badge slot so names don't collide.
     return draw_number_plate(c, x, y + 1, n, mfg, s)
@@ -997,6 +1036,7 @@ def fetch_updates(ctx):
 
     race = None
     source = "PREV"
+    flag_state = 0
     upcoming_race, _ = pick_races(schedule, series, "AUTO")
     if upcoming_race != None:
         series_id = int(upcoming_race.get("series_id", SERIES_IDS.get(series, 1)))
@@ -1012,6 +1052,7 @@ def fetch_updates(ctx):
         if live["ok"]:
             race = upcoming_race
             source = "LIVE"
+            flag_state = int(live["data"].get("flag_state", 0))
     if race == None:
         race, _ = pick_races(schedule, series, "PREVIOUS RACE")
         source = "PREV"
@@ -1058,7 +1099,7 @@ def fetch_updates(ctx):
         "series": series,
         "race_name": short_race(race.get("race_name", "RACE"), 14),
         "live": source == "LIVE",
-        "flag_state": 0,
+        "flag_state": flag_state,
         "notes": notes,
     }
 
