@@ -1,0 +1,34 @@
+gdn: 1
+id: search-pulse
+version: 0.1.0
+name: Search Pulse
+author: John McRae
+description: Currently surging Google Search queries from Google Trends Trending Now. Not overall Google search rankings. No API key required.
+category: News
+entry: app.star
+width: 192
+height: 32
+# Google says Trending Now refreshes about every 10 minutes.
+refresh: 600
+pages: [pulse, one, two, three, four, five]
+inputs:
+  - key: country
+    type: string
+    app_input_type: dropdown
+    label: Country
+    choices: ["UNITED STATES", "CANADA", "UNITED KINGDOM", "AUSTRALIA", "MEXICO"]
+    default: UNITED STATES
+    help: Country for Google Trends Trending Now. The panel ranks that country's highest-volume surging queries, not overall Google search volume.
+  - key: window
+    type: string
+    app_input_type: dropdown
+    label: Window
+    choices: ["4 HOURS", "24 HOURS"]
+    default: 24 HOURS
+    help: Official Trending Now time window (hours=4 or hours=24). The graph's X axis matches this window.
+  - key: accent
+    type: string
+    app_input_type: color
+    label: Accent color
+    default: "#3CF0FF"
+    help: Color for the rank, left rail, magnifying glass, and sparkline. Volume stays amber.

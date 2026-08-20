@@ -1,0 +1,33 @@
+gdn: 1
+id: days-since
+version: 0.1.0
+name: Days Since
+author: glance-led-dev
+description: A streak counter for the thing you are keeping up — or keeping away from — with a weeks and months breakdown.
+category: Lifestyle
+entry: app.star
+
+width: 64
+height: 32
+refresh: 3600
+
+pages: [count, detail]
+
+inputs:
+  - key: label
+    type: string
+    app_input_type: free-text
+    label: Label
+    default: "DAYS SINCE"
+    help: Shown above the number. The panel fonts are uppercase only.
+  - key: since
+    type: string
+    app_input_type: date-past
+    label: Start date
+    default: "2026-01-01"
+    help: The day the streak began. Counting starts the day after.
+  - key: accent
+    type: string
+    app_input_type: color
+    label: Accent color
+    default: "#39D98A"

@@ -3,13 +3,13 @@ id: nascar-companion
 version: 1.0.1
 name: NASCAR Companion
 author: reyos86
-description: Live NASCAR race companion — leaderboard, laps, stage, flag status, and race updates for Cup, Xfinity, and Trucks.
+description: Live NASCAR race companion — leaderboard, laps, stage, flag status, and race updates for Cup, O'Reilly, and Trucks.
 category: Sports
 entry: app.star
 width: 192
 height: 32
 refresh: 60
-pages: [upcoming, results, race, updates]
+pages: [upcoming, race, updates, results]
 assets:
   - checkered.png
   - flag-green.png
@@ -24,6 +24,7 @@ assets:
   - car-12.png
   - car-16.png
   - car-17.png
+  - car-18.png
   - car-19.png
   - car-2.png
   - car-20.png
@@ -36,6 +37,8 @@ assets:
   - car-34.png
   - car-35.png
   - car-38.png
+  - car-39.png
+  - car-00.png
   - car-4.png
   - car-41.png
   - car-42.png
@@ -45,6 +48,7 @@ assets:
   - car-48.png
   - car-5.png
   - car-51.png
+  - car-52.png
   - car-54.png
   - car-6.png
   - car-60.png
@@ -54,15 +58,20 @@ assets:
   - car-71.png
   - car-77.png
   - car-78.png
+  - car-8.png
+  - car-87.png
   - car-88.png
   - car-9.png
+  - car-91.png
   - car-97.png
+  - car-98.png
   - car-1-sm.png
   - car-10-sm.png
   - car-11-sm.png
   - car-12-sm.png
   - car-16-sm.png
   - car-17-sm.png
+  - car-18-sm.png
   - car-19-sm.png
   - car-2-sm.png
   - car-20-sm.png
@@ -75,6 +84,8 @@ assets:
   - car-34-sm.png
   - car-35-sm.png
   - car-38-sm.png
+  - car-39-sm.png
+  - car-00-sm.png
   - car-4-sm.png
   - car-41-sm.png
   - car-42-sm.png
@@ -84,6 +95,7 @@ assets:
   - car-48-sm.png
   - car-5-sm.png
   - car-51-sm.png
+  - car-52-sm.png
   - car-54-sm.png
   - car-6-sm.png
   - car-60-sm.png
@@ -93,9 +105,13 @@ assets:
   - car-71-sm.png
   - car-77-sm.png
   - car-78-sm.png
+  - car-8-sm.png
+  - car-87-sm.png
   - car-88-sm.png
   - car-9-sm.png
+  - car-91-sm.png
   - car-97-sm.png
+  - car-98-sm.png
 
 inputs:
   - key: series
@@ -103,5 +119,5 @@ inputs:
     app_input_type: dropdown
     label: Series
     default: CUP
-    choices: [CUP, XFINITY, TRUCKS]
-    help: Which NASCAR national series to follow.
+    choices: [CUP, OREILLY, TRUCKS]
+    help: Which NASCAR national series to follow (Cup, O'Reilly Auto Parts, Trucks).

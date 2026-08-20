@@ -49,7 +49,7 @@ def _movies(ctx):
             "language": "en-US",
             "page": "1",
         },
-        ttl_seconds = 3600,
+        ttl_seconds = 43200,
     )
     if resp["status_code"] != 200 or resp["json"] == None:
         return SAMPLE

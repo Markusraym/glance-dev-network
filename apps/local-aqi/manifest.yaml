@@ -15,7 +15,7 @@ inputs:
     app_input_type: api-key
     type: string
     label: AirNow API key
-    help: Free key from docs.airnowapi.org/account/request
+    help: "Free key from https://docs.airnowapi.org/account/request (AirNow is the EPA feed; approval is usually immediate)."
   - key: zip
     type: string
     app_input_type: free-text

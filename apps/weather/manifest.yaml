@@ -1,0 +1,23 @@
+id: weather
+name: Weather
+author: cfdmb
+description: another weather app
+category: Weather
+width: 128
+height: 32
+refresh: 300
+pages:
+  - current
+  - conditions
+  - wind
+  - rainfall
+  - uv_aqi
+  - forecast
+  - warnings
+  - astro
+inputs:
+  - key: zip
+    type: number
+    app_input_type: number
+    label: "ZIP"
+    default: 27949
