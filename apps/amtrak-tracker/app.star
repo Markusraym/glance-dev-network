@@ -33,7 +33,7 @@ def _fit_clip(c, text, fonts, maxw):
     return [pick, t]
 
 
-def nodata(c, title, sub):
+def nodata(c, title, sub, narrow_title = "", narrow_sub = ""):
     """Shown whenever a feed is unreachable or a key is missing.
 
     Every network app needs one: the publish-time validator renders each page
@@ -44,6 +44,11 @@ def nodata(c, title, sub):
     on the panel ran straight through the line beneath it.
     Wide:   4-19 title | 22-28 detail
     Narrow: 5-12 title | 18-22 detail
+
+    narrow_title/narrow_sub are shorter wordings for a 64 panel, where 58px
+    is all there is: "NO TRAIN DATA" measures 60px even in 4x5, the smallest
+    font offered, so _fit_clip could only ever chop it to "NO TRAIN DAT".
+    Passing a phrase that fits beats clipping one that does not.
     """
     c.fill("#0B0C12")
     maxw = c.width - 6
@@ -55,10 +60,12 @@ def nodata(c, title, sub):
         c.text(d[1], c.width // 2, 22, font = d[0], color = "#6A7090",
                align = "center")
     else:
-        t = _fit_clip(c, title, ["6x8", "5x7", "4x5"], maxw)
+        nt = narrow_title if narrow_title != "" else title
+        ns = narrow_sub if narrow_sub != "" else sub
+        t = _fit_clip(c, nt, ["6x8", "5x7", "4x5"], maxw)
         c.text(t[1], c.width // 2, 5, font = t[0], color = "#E8B04A",
                align = "center")
-        d = _fit_clip(c, sub, ["4x5"], maxw)
+        d = _fit_clip(c, ns, ["4x5"], maxw)
         c.text(d[1], c.width // 2, 18, font = d[0], color = "#6A7090",
                align = "center")
 
@@ -238,7 +245,7 @@ def train(c, ctx):
     r = http.get("https://api-v3.amtraker.com/v3/trains/" + num,
                  ttl_seconds = 300)
     if r["status_code"] != 200 or not r["json"]:
-        nodata(c, "NO TRAIN DATA", "NO CONNECTION")
+        nodata(c, "NO TRAIN DATA", "NO CONNECTION", "NO DATA", "NO NETWORK")
         return
 
     runs = r["json"].get(num, [])
