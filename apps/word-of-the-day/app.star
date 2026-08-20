@@ -1,7 +1,9 @@
 RANDOM_URL = "https://random-word-api.herokuapp.com/word?number=2&diff=4"
 DICTIONARY_URL = "https://api.dictionaryapi.dev/api/v2/entries/en/"
 
-CHARS_PER_LINE = 16
+FONT = "picopixel"
+# Text starts at TEXT_X and keeps the same gutter on the right.
+TEXT_X = 2
 LINES_PER_PAGE = 4
 
 
@@ -17,7 +19,16 @@ def _clean_text(value):
     return text
 
 
-def _wrap_lines(text, max_chars):
+def _wrap_lines(c, text, max_px):
+    """Wrap on measured pixel width rather than a character count.
+
+    picopixel is proportional -- W is 5px wide, I is 2px -- so one fixed
+    character budget is wrong in both directions: it wastes a row of narrow
+    letters, and it overflows on wide ones. Nothing in the drawing API
+    clips, so an overflowing line just loses its last glyph off the right
+    edge ("ESTER OF BENZOIC" is 16 chars but measures 63px, one column past
+    a 64px panel once the 2px left margin is added).
+    """
     words = str(text).upper().split(" ")
 
     lines = []
@@ -30,24 +41,36 @@ def _wrap_lines(text, max_chars):
             else:
                 candidate = current + " " + item
 
-            if len(candidate) <= max_chars:
+            if c.text_width(candidate, font = FONT) <= max_px:
                 current = candidate
 
             else:
                 if current != "":
                     lines.append(current)
 
-                if len(item) <= max_chars:
+                if c.text_width(item, font = FONT) <= max_px:
                     current = item
                 else:
-                    lines.append(item[:max_chars])
-                    current = ""
+                    # One word wider than the whole row: break it on pixels
+                    # too, so a long headword cannot run off the panel.
+                    chunk = ""
+
+                    for i in range(len(item)):
+                        ch = item[i:i + 1]
+
+                        if c.text_width(chunk + ch, font = FONT) <= max_px:
+                            chunk = chunk + ch
+                        else:
+                            if chunk != "":
+                                lines.append(chunk)
+                            chunk = ch
+
+                    current = chunk
 
     if current != "":
         lines.append(current)
 
     return lines
-
 
 def _lookup_word(word):
     resp = http.get(
@@ -224,9 +247,9 @@ def _draw_lines(c, label, lines, start, count, color):
 
     c.text(
         label.upper(),
-        2,
+        TEXT_X,
         1,
-        font = "picopixel",
+        font = FONT,
         color = color,
     )
 
@@ -239,9 +262,9 @@ def _draw_lines(c, label, lines, start, count, color):
     for index in range(start, end):
         c.text(
             lines[index].upper(),
-            2,
+            TEXT_X,
             y,
-            font = "picopixel",
+            font = FONT,
             color = "white",
         )
 
@@ -291,8 +314,9 @@ def definition(c, ctx):
 
     else:
         lines = _wrap_lines(
+            c,
             data["definition"],
-            CHARS_PER_LINE,
+            c.width - TEXT_X * 2,
         )
 
         label = "DEFINITION"
@@ -321,8 +345,9 @@ def details(c, ctx):
 
     else:
         definition_lines = _wrap_lines(
+            c,
             data["definition"],
-            CHARS_PER_LINE,
+            c.width - TEXT_X * 2,
         )
 
         if len(definition_lines) > LINES_PER_PAGE:
@@ -342,8 +367,9 @@ def details(c, ctx):
                 example_text = "NO EXAMPLE AVAILABLE"
 
             example_lines = _wrap_lines(
+                c,
                 example_text,
-                CHARS_PER_LINE,
+                c.width - TEXT_X * 2,
             )
 
             _draw_lines(
