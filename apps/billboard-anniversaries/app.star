@@ -91,6 +91,38 @@ def fit_text(c, text, font, maxw):
             return candidate
     return "..."
 
+def fit_font(c, text, options, maxw):
+    # Picks the first (biggest) font in `options` that fits `text` within
+    # maxw untruncated, falling back to the last (smallest) if none do -
+    # so a short artist name stays at normal size and only a long one drops
+    # to the smaller font, rather than shrinking everything uniformly.
+    for f in options:
+        if c.text_width(text, f) <= maxw:
+            return f
+    return options[len(options) - 1]
+
+def decade_color(year):
+    # Header bg reflects the chart's actual decade (not the "years ago"
+    # number) - a loose, era-associated palette rather than anything
+    # historically rigorous: orange/gold for 60s-70s (flower power, disco),
+    # hot pink for 80s neon, turquoise for 90s, blue for Y2K-era 2000s,
+    # orchid for 2010s, spring green as the fallback for anything newer.
+    decade = (year // 10) * 10
+    if decade <= 1960:
+        return "#FFA500"
+    elif decade == 1970:
+        return "#FFD700"
+    elif decade == 1980:
+        return "#FF69B4"
+    elif decade == 1990:
+        return "#40E0D0"
+    elif decade == 2000:
+        return "#1E90FF"
+    elif decade == 2010:
+        return "#DA70D6"
+    else:
+        return "#00FF7F"
+
 def draw_chart_unavailable(c):
     c.text("CHART DATA".upper(), 64, 14, font = "4x5", color = "#888888", align = "center")
     c.text("UNAVAILABLE".upper(), 64, 20, font = "4x5", color = "#888888", align = "center")
@@ -100,11 +132,11 @@ def render_chart_page(c, ctx, years_ago):
 
     year = ctx.now.year - years_ago
     label = str(years_ago) + " YRS AGO (" + str(year) + ")"
-    # header() draws a filled bar across the FULL width (not a left sidebar -
-    # despite what this file used to claim) and returns the y just below it.
+    # header() draws a filled bar across the FULL width and returns the y
+    # just below it - unchanged from before.
     # "#1 SONG" is dropped from this label - the intro page already covers
     # that framing, so it'd be redundant on every subsequent page.
-    content_y = c.header(label.upper())
+    content_y = c.header(label.upper(), bg = decade_color(year))
 
     chart_date = anniversary_chart_date(ctx, years_ago)
     resp = fetch_billboard_chart(chart_date)
@@ -125,21 +157,17 @@ def render_chart_page(c, ctx, years_ago):
     song_title = top.get("song", "")
     artist_name = top.get("artist", "")
 
-    title_y = content_y + 2
-    c.text(
-        fit_text(c, song_title.upper(), "4x7", 124),
-        1,
-        title_y,
-        font = "4x7",
-        color = "white",
-    )
+    # Title can wrap to a 2nd line (same as sxm-now-playing's track title) -
+    # artist sits at a fixed y regardless of whether it took 1 or 2 lines.
+    c.text_wrapped(song_title.upper(), 2, content_y, 124, font = "5x7", color = "white", line_gap = 1, max_lines = 2)
 
-    artist_y = title_y + 12
+    artist_upper = artist_name.upper()
+    artist_font = fit_font(c, artist_upper, ["4x5", "picopixel"], 125)
     c.text(
-        fit_text(c, artist_name.upper(), "3x7", 124),
-        1,
-        artist_y,
-        font = "3x7",
+        fit_text(c, artist_upper, artist_font, 125),
+        2,
+        26,
+        font = artist_font,
         color = "gray",
     )
 
