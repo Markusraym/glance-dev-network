@@ -1,0 +1,33 @@
+id: current-weather
+name: Current Weather
+author: cfdmb
+description: Current Weather data by zip or lat/long, warnings included
+width: 128
+height: 32
+refresh: 60
+pages:
+  - current
+  - conditions
+  - wind
+  - rainfall
+  - uv_aqi
+  - forecast
+  - warning_1
+  - warning_2
+inputs:
+  - key: zip
+    type: number
+    app_input_type: number
+    label: Zip Code
+    default: 10001
+  - key: lat
+    type: text
+    app_input_type: text
+    label: Latitude (overrides zip, 4 decimal places is plenty)
+    default: ""
+  - key: lon
+    type: text
+    app_input_type: text
+    label: Longitude (overrides zip, 4 decimal places is plenty)
+    default: ""
+
