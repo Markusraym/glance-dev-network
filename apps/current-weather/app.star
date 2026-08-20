@@ -132,6 +132,11 @@ def format4(value):
 
 def zip_str(v):
     if type(v) == "int":
+        # A number input the user cleared arrives as 0. Treat that as unset so
+        # main() shows "SET ZIP OR LAT/LON" rather than looking up "00000" and
+        # reporting the far more alarming "ZIP LOOKUP FAILED".
+        if v <= 0:
+            return ""
         return pad_int(v, 5)
     return str(v).strip()
 
