@@ -19,7 +19,7 @@ inputs:
     type: number
     app_input_type: number
     label: Zip Code
-    default: 0
+    default: 10001
   - key: lat
     type: text
     app_input_type: text
