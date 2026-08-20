@@ -1,0 +1,85 @@
+gdn: 1
+id: ebird-nearby
+version: 0.1.0
+name: Bird Sightings
+author: glance-led-dev
+description: "Notable birds reported near you in the last week, from eBird."
+category: Science
+entry: app.star
+
+width: 64
+height: 32
+refresh: 3600
+
+pages: [sightings]
+
+assets:
+  - BIRD.png
+
+inputs:
+  - key: apikey
+    type: string
+    app_input_type: api-key
+    label: eBird API token
+    default: ""
+    help: "Free token, takes a minute: https://ebird.org/api/keygen (sign in with a free eBird account first). Or enter DEMO to preview with sample data."
+  - key: region
+    type: choice
+    app_input_type: dropdown
+    label: Region
+    default: "NEW YORK"
+    choices:
+      - "ALABAMA"
+      - "ALASKA"
+      - "ARIZONA"
+      - "ARKANSAS"
+      - "CALIFORNIA"
+      - "COLORADO"
+      - "CONNECTICUT"
+      - "DELAWARE"
+      - "DISTRICT OF COLUMBIA"
+      - "FLORIDA"
+      - "GEORGIA"
+      - "HAWAII"
+      - "IDAHO"
+      - "ILLINOIS"
+      - "INDIANA"
+      - "IOWA"
+      - "KANSAS"
+      - "KENTUCKY"
+      - "LOUISIANA"
+      - "MAINE"
+      - "MARYLAND"
+      - "MASSACHUSETTS"
+      - "MICHIGAN"
+      - "MINNESOTA"
+      - "MISSISSIPPI"
+      - "MISSOURI"
+      - "MONTANA"
+      - "NEBRASKA"
+      - "NEVADA"
+      - "NEW HAMPSHIRE"
+      - "NEW JERSEY"
+      - "NEW MEXICO"
+      - "NEW YORK"
+      - "NORTH CAROLINA"
+      - "NORTH DAKOTA"
+      - "OHIO"
+      - "OKLAHOMA"
+      - "OREGON"
+      - "PENNSYLVANIA"
+      - "RHODE ISLAND"
+      - "SOUTH CAROLINA"
+      - "SOUTH DAKOTA"
+      - "TENNESSEE"
+      - "TEXAS"
+      - "UTAH"
+      - "VERMONT"
+      - "VIRGINIA"
+      - "WASHINGTON"
+      - "WEST VIRGINIA"
+      - "WISCONSIN"
+      - "WYOMING"
+      - "PUERTO RICO"
+      - "US VIRGIN ISLANDS"
+    help: "Sightings are reported for this state."

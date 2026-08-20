@@ -1,0 +1,28 @@
+gdn: 1
+
+id: high-rock-lake
+
+version: 0.1.0
+
+name: High Rock Lake
+
+author: Patrick
+
+description: Lake.Life branding, plus High Rock Lake's water level, rise/fall forecast, and water temperature.
+
+category: Weather
+
+entry: app.star
+
+width: 64
+
+height: 32
+
+# 15 min: level/temp/forecast pages don't change fast enough to justify more frequent
+# scraping, and it keeps us well clear of the 8-uncached-requests-per-render cap.
+refresh: 900
+
+pages: [brand, water]
+
+assets:
+  - lakelife_icon.png

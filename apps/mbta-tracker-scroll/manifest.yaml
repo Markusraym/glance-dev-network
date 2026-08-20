@@ -313,8 +313,4 @@ inputs:
     app_input_type: api-key
     label: MBTA API Key (optional)
     default: ""
-    help: >-
-      Free key from api-v3.mbta.com/register. Not required -- the app works
-      keyless at a lower rate limit -- but recommended if this panel refreshes
-      often or you're iterating in Studio, since the keyless limit is easy to
-      hit during live editing.
+    help: "Optional. Free key from https://api-v3.mbta.com/register . The app works keyless at a lower rate limit; add a key if this panel refreshes often or you are iterating in Studio, since the keyless limit is easy to hit while live editing."

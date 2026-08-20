@@ -86,6 +86,36 @@ def fit_font(c, text, options, maxw):
             return f
     return options[len(options) - 1]
 
+
+def fit_words(c, text, options, maxw):
+    """[font, text] that genuinely fits maxw, trimmed at a word boundary.
+
+    fit_font only chooses a size: when even the smallest option overflows it
+    still returns one, and c.text() then draws the whole string anyway. That is
+    how a long incident name ran through the CONTAINED column beside it and off
+    the panel -- "BRIDGE CREEK COMPLEX FIRE" is 25 characters and no font in
+    the list makes that fit 80px.
+
+    Whole words only, because a hard cut leaves things like "BRIDGE CREEK COMP"
+    that read as a rendering fault rather than an abbreviation.
+    """
+    f = fit_font(c, text, options, maxw)
+    if c.text_width(text, f) <= maxw:
+        return [f, text]
+    parts = text.split(" ")
+    out = ""
+    for w in parts:
+        trial = w if out == "" else out + " " + w
+        if c.text_width(trial, f) > maxw:
+            break
+        out = trial
+    if out != "":
+        return [f, out]
+    for k in range(len(text), 0, -1):
+        if c.text_width(text[:k], f) <= maxw:
+            return [f, text[:k]]
+    return [f, ""]
+
 # ---------- step 1: zip -> lat/lon ----------
 
 def _geocode(zip):
@@ -99,7 +129,10 @@ def _geocode(zip):
         return None
 
     p = places[0]
-    return [float(p["latitude"]), float(p["longitude"])]
+    # The place name rides along with the coordinates -- the response already
+    # carries it, so naming the panel costs no extra call.
+    return [float(p["latitude"]), float(p["longitude"]),
+            str(p.get("place name", "")).upper()]
 
 # ---------- step 2: fires near that point ----------
 # Returns {"ok": True, ...} or {"ok": False, "title":..., "sub":...}
@@ -210,6 +243,7 @@ def fetch(ctx):
 
     return {
         "ok": True,
+        "place": loc[2],
         "risk": risk,
         "color": color,
         "active": active,
@@ -231,11 +265,16 @@ def status(c, ctx):
         _err(c, d, "red")
         return
 
-    city = _s(ctx, "city", "").upper()
-
     c.fill("black")
     c.rect(0, 0, c.width - 1, 8, fill = "red")
-    c.text(city or "FIRE WATCH", c.width // 2, 1, font = "5x7", color = "white", align = "center")
+    # Named from the zip lookup rather than a hand-typed label. A typed label
+    # was as long as the user made it; a looked-up one can be anything the
+    # postal database holds, so drop to 4x5 for the long ones -- "RANCHO SANTA
+    # MARGARITA" is 132px at 5x7 and would run off a 128 panel.
+    head = d["place"] or "FIRE WATCH"
+    c.text(head, c.width // 2, 1,
+           font = fit_font(c, head, ["5x7", "4x5"], c.width - 4),
+           color = "white", align = "center")
     c.image("flame.png", 3, 10, w = 13, h = 16)          # custom icon from this folder
     c.text("ACTIVITY", 22, 10, font = "4x5", color = "gray")
     c.text(d["risk"], 22, 17, font = "7x12", color = d["color"])
@@ -265,7 +304,11 @@ def nearest(c, ctx):
         nm = nm + " FIRE"
     else:
         nm = "UNNAMED FIRE"
-    c.text(nm, 3, 11, font = fit_font(c, nm, ["5x7", "4x5"], 80), color = "orange")
+    # Measure the CONTAINED column and give the name what is actually left,
+    # rather than a fixed 80px it was free to overrun.
+    room = c.width - 3 - c.text_width("CONTAINED", "4x5") - 8
+    nf = fit_words(c, nm, ["5x7", "4x5"], room)
+    c.text(nf[1], 3, 11, font = nf[0], color = "orange")
 
     c.text(str(int(n["dist"] + 0.5)) + " MI", 3, 21, font = "5x7", color = "white")
     c.text(_acres(n["acres"]), 44, 21, font = "5x7", color = "gray")

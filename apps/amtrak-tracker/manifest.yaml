@@ -1,0 +1,71 @@
+gdn: 1
+id: amtrak-tracker
+version: 0.1.0
+name: Amtrak Tracker
+author: glance-led-dev
+description: "Where your Amtrak train actually is, how late it is, and its next stop."
+category: Transportation
+entry: app.star
+
+width: 64
+height: 32
+refresh: 300
+
+pages: [train]
+
+assets:
+  - LOCO.png
+
+inputs:
+  - key: number
+    type: choice
+    app_input_type: dropdown
+    label: Train
+    default: "NORTHEAST REGIONAL 173"
+    choices:
+      - "ADIRONDACK 68"
+      - "ADIRONDACK 69"
+      - "AUTO TRAIN 52"
+      - "AUTO TRAIN 53"
+      - "CALIFORNIA ZEPHYR 5"
+      - "CALIFORNIA ZEPHYR 6"
+      - "CARDINAL 50"
+      - "CARDINAL 51"
+      - "CAROLINIAN 79"
+      - "CAROLINIAN 80"
+      - "CITY OF NEW ORLEANS 58"
+      - "CITY OF NEW ORLEANS 59"
+      - "COAST STARLIGHT 11"
+      - "COAST STARLIGHT 14"
+      - "CRESCENT 19"
+      - "CRESCENT 20"
+      - "EMPIRE BUILDER 7"
+      - "EMPIRE BUILDER 8"
+      - "FLORIDIAN 40"
+      - "FLORIDIAN 41"
+      - "HEARTLAND FLYER 821"
+      - "HEARTLAND FLYER 822"
+      - "LAKE SHORE LIMITED 48"
+      - "LAKE SHORE LIMITED 49"
+      - "MAPLE LEAF 63"
+      - "MAPLE LEAF 64"
+      - "NORTHEAST REGIONAL 173"
+      - "NORTHEAST REGIONAL 66"
+      - "NORTHEAST REGIONAL 67"
+      - "NORTHEAST REGIONAL 85"
+      - "NORTHEAST REGIONAL 93"
+      - "NORTHEAST REGIONAL 94"
+      - "PALMETTO 89"
+      - "PALMETTO 90"
+      - "PENNSYLVANIAN 42"
+      - "PENNSYLVANIAN 43"
+      - "SILVER METEOR 97"
+      - "SILVER METEOR 98"
+      - "SOUTHWEST CHIEF 3"
+      - "SOUTHWEST CHIEF 4"
+      - "SUNSET LIMITED 1"
+      - "SUNSET LIMITED 2"
+      - "TEXAS EAGLE 21"
+      - "TEXAS EAGLE 22"
+      - "VERMONTER 55"
+      - "VERMONTER 56"

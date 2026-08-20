@@ -1,16 +1,21 @@
-# NASCAR Companion — live Cup / Xfinity / Trucks race board (192x32).
+# NASCAR Companion — live Cup / O'Reilly / Trucks race board (192x32).
 # Data from NASCAR's public Content Feed CDN (cf.nascar.com). Car badges are
 # bundled assets; flag icons and checkered chrome ship with the app.
 
 SERIES_IDS = {
     "CUP": 1,
+    "OREILLY": 2,
+    "O'REILLY": 2,
+    # Legacy choice name from before the 2026 title-sponsor change.
     "XFINITY": 2,
     "TRUCKS": 3,
 }
 
 SERIES_SHORT = {
     "CUP": "CUP",
-    "XFINITY": "XFY",
+    "OREILLY": "ORL",
+    "O'REILLY": "ORL",
+    "XFINITY": "ORL",
     "TRUCKS": "TRK",
 }
 
@@ -80,19 +85,29 @@ def safe_input(ctx, key, fallback):
 
 
 def clean_name(raw):
+    # CF tags rookies / open drivers as "Crews #" and part-timers as
+    # "Chastain(i)". Strip those so the board shows a real last name.
     name = str(raw).strip()
     if len(name) > 0 and name[0] == "*":
         name = name[1:].strip()
     cleaned = ""
     for i in range(len(name)):
-        if name[i] == "(":
+        ch = name[i]
+        if ch == "(":
             break
-        cleaned += name[i]
+        if ch == "#":
+            continue
+        cleaned += ch
     name = cleaned.strip()
     parts = name.split(" ")
-    if len(parts) == 0:
+    # Drop empty tokens left behind after stripping "#".
+    kept = []
+    for p in parts:
+        if p != "":
+            kept.append(p)
+    if len(kept) == 0:
         return "?"
-    return parts[len(parts) - 1].upper()
+    return kept[len(kept) - 1].upper()
 
 
 def short_track(name):
@@ -154,6 +169,23 @@ def format_date(value):
 
 def flag_label(state):
     return FLAG_LABEL.get(state, "FLAG")
+
+
+def session_label(state):
+    # CF run_type: 1 = practice, 2 = qualifying, 3 = race.
+    # Prefer session over flag color so practice doesn't read as "GREEN".
+    run_type = int(state.get("run_type", 0))
+    run_name = str(state.get("run_name", "")).upper()
+    if run_type == 2 or "QUAL" in run_name:
+        return "QUAL"
+    if run_type == 1 or "PRACTICE" in run_name:
+        return "PRACTICE"
+    return flag_label(state.get("flag_state", 0))
+
+
+def series_session_title(state):
+    series = SERIES_SHORT.get(state.get("series", "CUP"), "CUP")
+    return series + " " + session_label(state)
 
 
 def flag_color(state):
@@ -254,6 +286,8 @@ def upcoming_state(series, race, status_code):
         "source": "NEXT",
         "series": series,
         "race_name": short_race(race.get("race_name", "RACE"), 22),
+        "run_name": "",
+        "run_type": 0,
         "track_name": short_track(race.get("track_name", "")),
         "laps_in_race": int(race.get("scheduled_laps", 0)),
         "lap_number": 0,
@@ -281,6 +315,8 @@ def live_state(series, source, race, feed):
         "source": source,
         "series": series,
         "race_name": short_race(feed.get("run_name", race.get("race_name", "RACE")), 22),
+        "run_name": str(feed.get("run_name", "")),
+        "run_type": int(feed.get("run_type", 0)),
         "track_name": short_track(feed.get("track_name", race.get("track_name", ""))),
         "laps_in_race": int(feed.get("laps_in_race", race.get("scheduled_laps", 0))),
         "lap_number": int(feed.get("lap_number", 0)),
@@ -311,15 +347,30 @@ def draw_error(c, title, sub):
 
 def draw_chrome(c, state, title, right = ""):
     c.rect(0, 0, c.width - 1, 9, fill = COLORS["panel"])
-    c.image("checkered.png", 2, 1, w = 14, h = 8)
-    if state["live"] and state["flag_state"] > 0:
-        draw_flag_icon(c, state["flag_state"], 18, 0)
+    flag = int(state.get("flag_state", 0))
+    live = bool(state.get("live", False))
+    finished = flag == 5 or flag == 9
+    if live and not finished:
+        # Live race pages: status flag only — skip the brand checkered.
+        if flag > 0:
+            draw_flag_icon(c, flag, 2, 0)
+            c.text(title, 14, 2, font = "5x7", color = COLORS["text"])
+        else:
+            c.text(title, 2, 2, font = "5x7", color = COLORS["text"])
+    elif live and flag > 0:
+        # Finished / results: keep brand checkered + checkered status flag.
+        c.image("checkered.png", 2, 1, w = 14, h = 8)
+        draw_flag_icon(c, flag, 18, 0)
         c.text(title, 30, 2, font = "5x7", color = COLORS["text"])
     else:
+        c.image("checkered.png", 2, 1, w = 14, h = 8)
         c.text(title, 20, 2, font = "5x7", color = COLORS["accent"])
     if right != "":
         c.text(right, c.width - 3, 2, font = "5x7", color = COLORS["muted"], align = "right")
-    accent = flag_color(state["flag_state"]) if state["live"] else COLORS["accent"]
+    if live and flag > 0:
+        accent = flag_color(flag)
+    else:
+        accent = COLORS["accent"]
     c.rect(0, 10, c.width - 1, 10, fill = accent)
 
 
@@ -330,16 +381,18 @@ def plate_label(num):
     return label
 
 
-def draw_number_plate(c, x, y, num, mfg):
-    # Small crisp plate for dense rows (live board). Downloaded car-number
-    # photos turn to mush at this size on an LED grid — a flat colored plate
-    # with the bitmap font reads far cleaner.
+def draw_number_plate(c, x, y, num, mfg, width = 0):
+    # Flat manufacturer-colored plate used when a car badge isn't bundled.
+    # Optional fixed width keeps the live board from shoving into names.
     bg = mfg_color(mfg)
     label = plate_label(num)
-    tw = c.text_width(label, "4x5")
-    w = tw + 4
-    if w < 11:
-        w = 11
+    if width > 0:
+        w = int(width)
+    else:
+        tw = c.text_width(label, "4x5")
+        w = tw + 4
+        if w < 11:
+            w = 11
     c.rect(x, y, x + w - 1, y + 6, fill = bg)
     c.rect(x, y, x + w - 1, y, fill = "#FFFFFF")
     c.text(label, x + w // 2, y + 1, font = "4x5", color = "#FFFFFF", align = "center")
@@ -350,6 +403,9 @@ def draw_car_badge(c, x, y, num, mfg, size = 11):
     # Real CF car badges when bundled; colored plate fallback otherwise.
     n = str(num)
     s = int(size)
+    if n == "00":
+        c.image("car-00.png", x, y, w = s, h = s)
+        return s
     if n == "1":
         c.image("car-1.png", x, y, w = s, h = s)
         return s
@@ -367,6 +423,9 @@ def draw_car_badge(c, x, y, num, mfg, size = 11):
         return s
     if n == "17":
         c.image("car-17.png", x, y, w = s, h = s)
+        return s
+    if n == "18":
+        c.image("car-18.png", x, y, w = s, h = s)
         return s
     if n == "19":
         c.image("car-19.png", x, y, w = s, h = s)
@@ -404,6 +463,9 @@ def draw_car_badge(c, x, y, num, mfg, size = 11):
     if n == "38":
         c.image("car-38.png", x, y, w = s, h = s)
         return s
+    if n == "39":
+        c.image("car-39.png", x, y, w = s, h = s)
+        return s
     if n == "4":
         c.image("car-4.png", x, y, w = s, h = s)
         return s
@@ -430,6 +492,9 @@ def draw_car_badge(c, x, y, num, mfg, size = 11):
         return s
     if n == "51":
         c.image("car-51.png", x, y, w = s, h = s)
+        return s
+    if n == "52":
+        c.image("car-52.png", x, y, w = s, h = s)
         return s
     if n == "54":
         c.image("car-54.png", x, y, w = s, h = s)
@@ -458,16 +523,28 @@ def draw_car_badge(c, x, y, num, mfg, size = 11):
     if n == "78":
         c.image("car-78.png", x, y, w = s, h = s)
         return s
+    if n == "8":
+        c.image("car-8.png", x, y, w = s, h = s)
+        return s
+    if n == "87":
+        c.image("car-87.png", x, y, w = s, h = s)
+        return s
     if n == "88":
         c.image("car-88.png", x, y, w = s, h = s)
         return s
     if n == "9":
         c.image("car-9.png", x, y, w = s, h = s)
         return s
+    if n == "91":
+        c.image("car-91.png", x, y, w = s, h = s)
+        return s
     if n == "97":
         c.image("car-97.png", x, y, w = s, h = s)
         return s
-    return draw_number_plate(c, x, y + 1, n, mfg)
+    if n == "98":
+        c.image("car-98.png", x, y, w = s, h = s)
+        return s
+    return draw_number_plate(c, x, y + 1, n, mfg, s)
 
 
 def draw_car_badge_small(c, x, y, num, mfg, size = 10):
@@ -476,6 +553,9 @@ def draw_car_badge_small(c, x, y, num, mfg, size = 10):
     # at 10px. These pre-blended "-sm" assets tone that down.
     n = str(num)
     s = int(size)
+    if n == "00":
+        c.image("car-00-sm.png", x, y, w = s, h = s)
+        return s
     if n == "1":
         c.image("car-1-sm.png", x, y, w = s, h = s)
         return s
@@ -493,6 +573,9 @@ def draw_car_badge_small(c, x, y, num, mfg, size = 10):
         return s
     if n == "17":
         c.image("car-17-sm.png", x, y, w = s, h = s)
+        return s
+    if n == "18":
+        c.image("car-18-sm.png", x, y, w = s, h = s)
         return s
     if n == "19":
         c.image("car-19-sm.png", x, y, w = s, h = s)
@@ -530,6 +613,9 @@ def draw_car_badge_small(c, x, y, num, mfg, size = 10):
     if n == "38":
         c.image("car-38-sm.png", x, y, w = s, h = s)
         return s
+    if n == "39":
+        c.image("car-39-sm.png", x, y, w = s, h = s)
+        return s
     if n == "4":
         c.image("car-4-sm.png", x, y, w = s, h = s)
         return s
@@ -556,6 +642,9 @@ def draw_car_badge_small(c, x, y, num, mfg, size = 10):
         return s
     if n == "51":
         c.image("car-51-sm.png", x, y, w = s, h = s)
+        return s
+    if n == "52":
+        c.image("car-52-sm.png", x, y, w = s, h = s)
         return s
     if n == "54":
         c.image("car-54-sm.png", x, y, w = s, h = s)
@@ -584,16 +673,29 @@ def draw_car_badge_small(c, x, y, num, mfg, size = 10):
     if n == "78":
         c.image("car-78-sm.png", x, y, w = s, h = s)
         return s
+    if n == "8":
+        c.image("car-8-sm.png", x, y, w = s, h = s)
+        return s
+    if n == "87":
+        c.image("car-87-sm.png", x, y, w = s, h = s)
+        return s
     if n == "88":
         c.image("car-88-sm.png", x, y, w = s, h = s)
         return s
     if n == "9":
         c.image("car-9-sm.png", x, y, w = s, h = s)
         return s
+    if n == "91":
+        c.image("car-91-sm.png", x, y, w = s, h = s)
+        return s
     if n == "97":
         c.image("car-97-sm.png", x, y, w = s, h = s)
         return s
-    return draw_number_plate(c, x, y + 1, n, mfg)
+    if n == "98":
+        c.image("car-98-sm.png", x, y, w = s, h = s)
+        return s
+    # Keep fallback plates inside the badge slot so names don't collide.
+    return draw_number_plate(c, x, y + 1, n, mfg, s)
 
 
 def fetch_schedule(ctx):
@@ -723,7 +825,8 @@ def upcoming(c, ctx):
         return
 
     # ---- Live board: top 6 with car badges, no gap times ----
-    title = series + " " + flag_label(state["flag_state"])
+    # Practice/qual use session name; race uses flag (GREEN/YELLOW/…).
+    title = series_session_title(state)
     lap = str(state["lap_number"]) + "/" + str(state["laps_in_race"])
     draw_chrome(c, state, title, lap)
 
@@ -747,9 +850,10 @@ def upcoming(c, ctx):
         y = 11 + line * 10
         c.text(str(row["pos"]), x, y + 3, font = "4x5", color = COLORS["muted"])
         badge_x = x + 8
-        draw_car_badge_small(c, badge_x, y, row["num"], row["mfg"], badge)
+        bw = draw_car_badge_small(c, badge_x, y, row["num"], row["mfg"], badge)
         name = row["name"]
-        name_x = badge_x + badge + 2
+        # +3 keeps italic badge strokes from kissing the name.
+        name_x = badge_x + bw + 3
         max_w = col_w - (name_x - x) - 2
         for _ in range(12):
             if c.text_width(name, "5x7") <= max_w or len(name) <= 3:
@@ -760,7 +864,7 @@ def upcoming(c, ctx):
 
 
 def results(c, ctx):
-    # Page 2: previous race top finishers with crisp number plates.
+    # Page 4: previous race top finishers with crisp number plates.
     state = fetch_previous(ctx)
     c.fill(COLORS["bg"])
     if not state["ok"]:
@@ -804,7 +908,7 @@ def results(c, ctx):
 
 
 def race(c, ctx):
-    # Page 3: lap progress bar + stage/flag callout + cautions & lead changes.
+    # Page 2: lap progress bar + stage/flag callout + cautions & lead changes.
     state = fetch_active(ctx)
     c.fill(COLORS["bg"])
     if not state["ok"]:
@@ -816,9 +920,12 @@ def race(c, ctx):
     togo = total - lap_now if total > 0 else 0
     if togo < 0:
         togo = 0
-    finished = togo <= 0 or state["flag_state"] == 5 or state["flag_state"] == 9
+    run_type = int(state.get("run_type", 0))
+    practice_or_qual = run_type in [1, 2] or togo >= 500
+    finished = (not practice_or_qual) and (togo <= 0 or state["flag_state"] == 5 or state["flag_state"] == 9)
     lap_str = str(lap_now) + "/" + str(total) if total > 0 else str(lap_now)
-    draw_chrome(c, state, short_race(state["race_name"], 16), lap_str)
+    chrome_title = series_session_title(state) if practice_or_qual else short_race(state["race_name"], 16)
+    draw_chrome(c, state, chrome_title, lap_str)
 
     # Progress bar follows live flag color; finished races use checkered silver
     # so STAGE N doesn't inherit an old "finish purple" accent.
@@ -829,13 +936,13 @@ def race(c, ctx):
     else:
         bar_color = COLORS["accent"]
 
-    # Lap progress bar with stage-boundary tick marks.
+    # Lap progress bar with stage-boundary tick marks (race sessions only).
     bar_x0 = 4
     bar_x1 = c.width - 5
     bar_y = 12
     bar_h = 4
     c.rect(bar_x0, bar_y, bar_x1, bar_y + bar_h - 1, fill = COLORS["rail"])
-    if total > 0:
+    if total > 0 and not practice_or_qual:
         frac = float(lap_now) / float(total)
         if frac > 1:
             frac = 1.0
@@ -849,14 +956,19 @@ def race(c, ctx):
                 tick_x = bar_x0 + int(float(bar_x1 - bar_x0) * (float(boundary) / float(total)))
                 c.rect(tick_x, bar_y - 1, tick_x, bar_y + bar_h, fill = COLORS["text"])
 
-    # Stage stays neutral white; FINISH gets the gold callout on the right.
-    label = flag_label(state["flag_state"])
-    if state["stage_num"] > 0:
+    # Practice/qual → session name; race → STAGE N (or flag).
+    if practice_or_qual:
+        label = session_label(state)
+    elif state["stage_num"] > 0:
         label = "STAGE " + str(state["stage_num"])
+    else:
+        label = flag_label(state["flag_state"])
     label_color = COLORS["text"] if finished else bar_color
     c.text(label, 4, 18, font = "6x8", color = label_color)
 
-    if total > 0 and lap_now > 0:
+    if practice_or_qual:
+        c.text(state["track_name"], c.width - 3, 19, font = "4x5", color = COLORS["muted"], align = "right")
+    elif total > 0 and lap_now > 0:
         if finished:
             c.text("FINISH", c.width - 3, 19, font = "5x7", color = COLORS["accent2"], align = "right")
         else:
@@ -924,6 +1036,7 @@ def fetch_updates(ctx):
 
     race = None
     source = "PREV"
+    flag_state = 0
     upcoming_race, _ = pick_races(schedule, series, "AUTO")
     if upcoming_race != None:
         series_id = int(upcoming_race.get("series_id", SERIES_IDS.get(series, 1)))
@@ -939,6 +1052,7 @@ def fetch_updates(ctx):
         if live["ok"]:
             race = upcoming_race
             source = "LIVE"
+            flag_state = int(live["data"].get("flag_state", 0))
     if race == None:
         race, _ = pick_races(schedule, series, "PREVIOUS RACE")
         source = "PREV"
@@ -985,13 +1099,13 @@ def fetch_updates(ctx):
         "series": series,
         "race_name": short_race(race.get("race_name", "RACE"), 14),
         "live": source == "LIVE",
-        "flag_state": 0,
+        "flag_state": flag_state,
         "notes": notes,
     }
 
 
 def updates(c, ctx):
-    # Page 4: latest race ticker ("#5 INCIDENT TURN 3", wrecks, stage ends).
+    # Page 3: latest race ticker ("#5 INCIDENT TURN 3", wrecks, stage ends).
     state = fetch_updates(ctx)
     c.fill(COLORS["bg"])
     if not state["ok"]:

@@ -1,0 +1,28 @@
+gdn: 1
+id: recall-radar
+version: 0.1.0
+name: Recall Radar
+author: John McRae
+description: Latest FDA recall from the official FDA.gov Recalls, Market Withdrawals and Safety Alerts list. No API key required.
+category: News
+entry: app.star
+width: 192
+height: 32
+# Press-release list can update the same day.
+refresh: 1800
+pages: [alert, product, reason, details]
+inputs:
+  - key: category
+    type: string
+    app_input_type: dropdown
+    label: Category
+    choices: [ALL, FOOD, DRUGS, DEVICES]
+    default: ALL
+    help: ALL shows the newest row on the FDA.gov recalls table. A single category keeps the first matching product type.
+  - key: severity
+    type: string
+    app_input_type: dropdown
+    label: Severity
+    choices: [ALL, CLASS I, CLASS II, CLASS III]
+    default: ALL
+    help: Press notices are not classified yet. The panel always shows the newest FDA.gov row for the selected category.

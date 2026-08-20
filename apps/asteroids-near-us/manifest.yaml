@@ -16,3 +16,4 @@ inputs:
     app_input_type: api-key
     label: NASA API key (api.nasa.gov)
     default: "DEMO_KEY"
+    help: "Works as-is on NASA's shared DEMO_KEY, which is rate-limited across everyone using it. Your own free key is instant and lifts that: https://api.nasa.gov (no account, just an email)."
