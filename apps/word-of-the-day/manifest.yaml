@@ -1,0 +1,17 @@
+gdn: 1
+id: word-of-the-day
+version: 0.1.0
+name: "Word of the Day"
+author: "David Burnham"
+description: This app is a study tool to help prepare for college entrance exams. It will generate a new word every 24 hours along with the definition.
+category: Lifestyle
+entry: app.star
+width: 64
+height: 32
+refresh: 3600
+pages:
+  - word
+  - definition
+  - details
+
+inputs: []
