@@ -208,33 +208,51 @@ def _draw_error(c, message):
     )
 
 
+# Headword sizes, largest first, each with the baseline that centres it.
+WORD_FONTS = [
+    ["7x12", 5],
+    ["6x8", 7],
+    ["5x7", 7],
+    ["4x5", 8],
+    ["picopixel", 9],
+]
+
+
 def _draw_word(c, word_text):
     word_text = word_text.upper()
-    length = len(word_text)
 
-    if length <= 6:
-        font = "7x12"
-        y = 5
+    # Pick on measured width, not len(). These fonts are proportional, so a
+    # character count is only ever an approximation of the real thing: at 12
+    # characters "MMMMMMMMMMMM" and "IIIIIIIIIIII" want different sizes, and
+    # a genuinely long headword ("ANTIDISESTABLISHMENTARIANISM" measures
+    # 111px in picopixel) overflowed a 64 panel in both directions at once,
+    # because nothing in the drawing API clips.
+    #
+    # The budget is the whole panel: this draw is centred, not indented like
+    # the definition rows, so anything that measures within c.width still
+    # lands on screen. Nothing that used to render fully is narrowed.
+    max_px = c.width
 
-    elif length <= 8:
-        font = "6x8"
-        y = 7
+    font = WORD_FONTS[len(WORD_FONTS) - 1][0]
+    y = WORD_FONTS[len(WORD_FONTS) - 1][1]
 
-    elif length <= 10:
-        font = "5x7"
-        y = 7
+    for pair in WORD_FONTS:
+        if c.text_width(word_text, font = pair[0]) <= max_px:
+            font = pair[0]
+            y = pair[1]
+            break
 
-    elif length <= 12:
-        font = "4x5"
-        y = 8
-
-    else:
-        font = "picopixel"
-        y = 9
+    # Longer than the smallest font can show: keep the prefix that fits so
+    # the word stays on the panel instead of running off both edges.
+    if c.text_width(word_text, font = font) > max_px:
+        for k in range(len(word_text), 0, -1):
+            if c.text_width(word_text[:k], font = font) <= max_px:
+                word_text = word_text[:k]
+                break
 
     c.text(
         word_text,
-        32,
+        c.width // 2,
         y,
         font = font,
         color = "white",
