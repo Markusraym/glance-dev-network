@@ -1,0 +1,65 @@
+gdn: 1
+id: nwsl-scroll
+version: 0.1.0
+name: NWSL
+author: glance-led-dev
+description: National Women's Soccer League - live scores, the matchday board, the table either side of the playoff line, and your club. Real club crests, no API key.
+category: Sports
+entry: app.star
+
+width: 192
+height: 32
+refresh: 120
+
+pages: [match, day, top8, chase, club]
+
+assets:
+  - BAY22.png
+  - BAY30.png
+  - BOS22.png
+  - BOS30.png
+  - CHI22.png
+  - CHI30.png
+  - DEN22.png
+  - DEN30.png
+  - GFC22.png
+  - GFC30.png
+  - HOU22.png
+  - HOU30.png
+  - KC22.png
+  - KC30.png
+  - LA22.png
+  - LA30.png
+  - LOU22.png
+  - LOU30.png
+  - NC22.png
+  - NC30.png
+  - ORL22.png
+  - ORL30.png
+  - POR22.png
+  - POR30.png
+  - SD22.png
+  - SD30.png
+  - SEA22.png
+  - SEA30.png
+  - UTA22.png
+  - UTA30.png
+  - WAS22.png
+  - WAS30.png
+
+inputs:
+  - key: team
+    type: choice
+    app_input_type: dropdown
+    label: Your club
+    default: "KC"
+    choices: ["LA", "BAY", "BOS", "CHI", "DEN", "GFC", "HOU", "KC", "NC", "ORL", "POR", "LOU", "SD", "SEA", "UTA", "WAS"]
+    help: >-
+      The club you follow. It is pinned on the matchday board, highlighted in
+      the table, and gets the CLUB page to itself.
+  - key: utcoffset
+    type: string
+    app_input_type: free-text
+    label: UTC offset
+    default: "-4"
+    help: Hours from UTC where you are, so kickoff times read correctly. Eastern is -4 in summer, -5 in winter.

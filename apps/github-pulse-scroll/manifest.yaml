@@ -1,0 +1,46 @@
+gdn: 1
+id: github-pulse-scroll
+version: 0.1.0
+name: GitHub Pulse
+author: glance-led-dev
+description: Whether CI is green and whether a pull request is waiting on you. For the person who owns the repo, not the one browsing it.
+category: Other
+entry: app.star
+
+width: 192
+height: 32
+refresh: 300
+
+pages: [main, queue, review]
+
+inputs:
+  - key: repo
+    type: string
+    app_input_type: free-text
+    label: Repository
+    default: "glance-led-dev/glance-dev-network"
+    help: >-
+      Owner and name only, like glance-led-dev/glance-dev-network. Not the full
+      URL -- a pasted https:// link cannot reach the app, because the colon ends
+      the value in transit.
+  - key: token
+    type: string
+    app_input_type: api-key
+    label: GitHub token
+    default: ""
+    help: >-
+      Optional, but recommended. Without one GitHub allows 60 requests an hour
+      per address, shared with everyone else on this render host. A read-only
+      fine-grained token lifts that to 5,000. Private repos need one.
+  - key: login
+    type: string
+    app_input_type: free-text
+    label: Your GitHub username
+    default: ""
+    help: Optional. Sharpens REVIEW so pull requests naming you come first.
+  - key: utcoffset
+    type: string
+    app_input_type: free-text
+    label: UTC offset
+    default: "0"
+    help: Hours from UTC, used only for the "how long ago" figures.
