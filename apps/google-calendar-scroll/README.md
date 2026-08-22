@@ -30,6 +30,8 @@ does not.
    - **Calendar ID** — `you@gmail.com`, or `c_9f2b...@group.calendar.google.com`
      for a secondary calendar. The `%40` is just an encoded `@`; either form works.
    - **Secret key** — `1a2b3c4d5e6f`, with or without the `private-` prefix.
+     Declared as an `api-key` input, so it is masked in the Studio and handled
+     as a credential rather than a plain setting.
 
    Leave **Secret key** blank if the calendar is public.
 
@@ -39,6 +41,10 @@ does not.
 
 Anyone with the secret address can read your calendar, so treat it like a
 password. Google can rotate it for you (**Reset** next to the secret address).
+
+The Calendar ID is deliberately *not* an `api-key` field — it is usually just
+your email address, and masking it would only make setup harder to check. The
+token is the half that is actually secret.
 
 **UTC offset** only matters for events your calendar stores in UTC. Events that
 carry their own time zone are shown exactly as written, which stays correct
