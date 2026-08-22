@@ -1,0 +1,44 @@
+gdn: 1
+id: hs-football-schedule
+version: 0.1.0
+name: "HS Football Schedule"
+author: "Markusraym"
+description: "Upcoming high school football games for one school - away/home matchup, date and kickoff time - from a MaxPreps scraper on parse.bot."
+category: Sports
+entry: app.star
+
+# Panel geometry. Height is 32 (fixed); width up to 384.
+width: 192
+height: 32
+
+# Twice a day, deliberately. get_team_schedule costs 2 parse.bot credits per
+# call, so an hourly refresh burns ~1,440 credits a month -- far past a 200
+# credit plan. At 12 hours it is ~124, and a football schedule set weeks in
+# advance does not need finer resolution than that. All 6 pages share one
+# cached response (ttl_seconds in app.star matches this interval).
+refresh: 43200
+
+# A title card naming the school, then one card per upcoming game.
+pages: [next_up, game1, game2, game3, game4, game5]
+
+inputs:
+  - key: school
+    type: string
+    app_input_type: free-text
+    label: MaxPreps team path
+    default: "DEMO"
+    help: "The team's MaxPreps path INCLUDING the sport, e.g. /fl/naples/naples-golden-eagles/football/ for Naples (FL). The sport suffix is required - the path without it returns an error. Add a season to pin the year: /fl/naples/naples-golden-eagles/football/26-27/schedule/. A school name on its own will not work. Leave it as DEMO to preview the app with sample games."
+
+  - key: season
+    type: string
+    app_input_type: free-text
+    label: Season (optional)
+    default: ""
+    help: "MaxPreps season code, e.g. 26-27. Leave blank to get whichever season MaxPreps currently marks as active - note that in the off-season that is still last year's finished schedule, which will show as no upcoming games."
+
+  - key: apikey
+    type: string
+    app_input_type: api-key
+    label: parse.bot API key
+    default: ""
+    help: "Your parse.bot key (starts with pmx_), from the dashboard at https://parse.bot. Not needed while the school is set to DEMO."
