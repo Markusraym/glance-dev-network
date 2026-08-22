@@ -30,14 +30,19 @@ inputs:
       reaching the app. The default is Google's public US holiday calendar, so
       the app shows something real before you have set it up; replace it with
       your own.
+  # A credential, not a preference: anyone holding this token can read the whole
+  # calendar, so it is declared api-key. That masks it in the Studio and marks
+  # it for the platform to hold as a secret rather than a plain setting.
   - key: icalkey
     type: string
-    app_input_type: free-text
+    app_input_type: api-key
     label: Secret key
     default: ""
     help: >-
       The private-XXXX token from that same address, with or without the
-      "private-" prefix. Leave blank if the calendar is public.
+      "private-" prefix. Anyone with it can read this calendar, so treat it like
+      a password -- Google can rotate it from the same settings page. Leave
+      blank if the calendar is public.
   - key: utcoffset
     type: string
     app_input_type: free-text
