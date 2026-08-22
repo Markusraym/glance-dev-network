@@ -64,37 +64,22 @@ DAYS = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"]
 # own rows so it exercises the same parsing path as live data.
 DEMO_SCHOOL = "CENTRAL"
 
-# Shaped exactly like get_team_schedule's contests[]: the subject school on
-# BOTH sides under home_team, the venue carried by is_home, the kickoff
-# folded into the ISO date, and one duplicated row -- the live feed repeats
-# contests, so the demo repeats one too and the dedupe gets exercised here
-# rather than first meeting it on a wall.
-DEMO_ROWS = [
-    {"date": "2026-09-11T19:00:00",
-     "home_team": {"school_name": "Central", "is_home": False},
-     "away_team": {"school_name": "Westview", "is_home": True},
-     "opponent": "Westview", "result": ""},
-    {"date": "2026-09-18T19:30:00",
-     "home_team": {"school_name": "Central", "is_home": True},
-     "away_team": {"school_name": "Lincoln", "is_home": False},
-     "opponent": "Lincoln", "result": ""},
-    {"date": "2026-09-18T19:30:00",
-     "home_team": {"school_name": "Central", "is_home": True},
-     "away_team": {"school_name": "Lincoln", "is_home": False},
-     "opponent": "Lincoln", "result": ""},
-    {"date": "2026-09-26T13:00:00",
-     "home_team": {"school_name": "Central", "is_home": False},
-     "away_team": {"school_name": "Mountain View Prep", "is_home": True},
-     "opponent": "Mountain View Prep", "result": ""},
-    {"date": "2026-10-02T19:00:00",
-     "home_team": {"school_name": "Central", "is_home": True},
-     "away_team": {"school_name": "Roosevelt", "is_home": False},
-     "opponent": "Roosevelt", "result": ""},
-    {"date": "2026-10-09T19:00:00",
-     "home_team": {"school_name": "Central", "is_home": False},
-     "away_team": {"school_name": "North Shore", "is_home": True},
-     "opponent": "North Shore", "result": ""},
+# One entry per opponent: [name, Central is at home]. The dates are NOT in here
+# -- see demo_rows(). Written-out dates went stale: the first cut of this app
+# shipped a schedule that ran Sep 11 to Oct 9 2026, which meant that from Oct 10
+# onward the DEMO school -- the app's default, and what the catalog previews
+# render -- had nothing upcoming and showed NO GAMES forever.
+DEMO_OPPONENTS = [
+    ["Westview", False],
+    ["Lincoln", True],
+    ["Mountain View Prep", False],
+    ["Roosevelt", True],
+    ["North Shore", False],
 ]
+
+# [days after the first game, hour, minute]. Game 3 is a Saturday afternoon so
+# the demo shows off the day-of-week column instead of five identical FRIs.
+DEMO_SLOTS = [[0, 19, 0], [7, 19, 30], [15, 13, 0], [21, 19, 0], [28, 19, 0]]
 
 
 # ------------------------------------------------------------ text helpers
@@ -183,6 +168,62 @@ def _weekday(y, m, d):
     if m < 3:
         yy = yy - 1
     return (yy + yy // 4 - yy // 100 + yy // 400 + t[m - 1] + d) % 7
+
+
+MDAYS = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+
+
+def _mdays(y, m):
+    if m == 2 and ((y % 4 == 0 and y % 100 != 0) or y % 400 == 0):
+        return 29
+    return MDAYS[m - 1]
+
+
+def _add_days(ymd, n):
+    """[y, m, d] `n` days after `ymd`. Starlark has no date library and no
+    while loop, so this rolls the months forward under a bounded for."""
+    y, m, d = ymd[0], ymd[1], ymd[2] + n
+    for _ in range(24):
+        if d <= _mdays(y, m):
+            break
+        d = d - _mdays(y, m)
+        m = m + 1
+        if m > 12:
+            m = 1
+            y = y + 1
+    return [y, m, d]
+
+
+def demo_rows(ctx):
+    """The sample schedule behind DEMO, always starting from the coming Friday.
+
+    Shaped exactly like get_team_schedule's contests[]: the subject school on
+    BOTH sides under home_team, the venue carried by is_home, the kickoff folded
+    into the ISO date, and one duplicated row -- the live feed repeats contests,
+    so the demo repeats one too and the dedupe gets exercised here rather than
+    first meeting it on a wall."""
+    today = [ctx.now.year, ctx.now.month, ctx.now.day]
+    ahead = (5 - _weekday(today[0], today[1], today[2]) + 7) % 7   # 5 = Friday
+    if ahead == 0:
+        ahead = 7          # kickoff has passed; start with next week's game
+    rows = []
+    for i in range(len(DEMO_OPPONENTS)):
+        name, at_home = DEMO_OPPONENTS[i][0], DEMO_OPPONENTS[i][1]
+        slot = DEMO_SLOTS[i]
+        d = _add_days(today, ahead + slot[0])
+        stamp = (str(d[0]) + "-" + fmt.pad(d[1]) + "-" + fmt.pad(d[2]) +
+                 "T" + fmt.pad(slot[1]) + ":" + fmt.pad(slot[2]) + ":00")
+        row = {
+            "date": stamp,
+            "home_team": {"school_name": DEMO_SCHOOL.title(), "is_home": at_home},
+            "away_team": {"school_name": name, "is_home": not at_home},
+            "opponent": name,
+            "result": "",
+        }
+        rows.append(row)
+        if i == 1:
+            rows.append(row)   # the repeat the dedupe is there for
+    return rows
 
 
 def _rank(ymd):
@@ -380,7 +421,7 @@ def _games(ctx):
         return ["CONFIG", None]
 
     if _is_demo(ctx):
-        raw = DEMO_ROWS
+        raw = demo_rows(ctx)
         school = DEMO_SCHOOL
     else:
         key = str(ctx.inputs.get("apikey", "")).strip()
