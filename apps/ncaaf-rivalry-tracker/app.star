@@ -36,9 +36,21 @@ def _color(team_name, teams_map, role):
             return col
     return "white" if role == "secondary" else "darkgray"
 
+def season_year(ctx):
+    """The football season a date belongs to.
+
+    The season spans August to January, so January and February still belong to
+    the year before. Hardcoding it meant the app silently queried a finished
+    season the moment the calendar rolled over."""
+    if ctx.now.month <= 2:
+        return ctx.now.year - 1
+    return ctx.now.year
+
 def get_rivalry_titles():
     url = "https://raw.githubusercontent.com/SlaterDen/ncaaf-rivalries/refs/heads/main/rivalries.json"
-    res = http.get(url, ttl_seconds=10) # Set to 10 seconds for testing
+    # A hand-maintained title list that changes a few times a season; a 10s TTL
+    # (left over from testing) re-fetched it on every render of every panel.
+    res = http.get(url, ttl_seconds=86400)
     
     if res["status_code"] == 200 and res["json"] != None:
         return res["json"]
@@ -121,7 +133,8 @@ def main(c, ctx):
 
     # Fetch dynamic rankings (CFP preferred, AP fallback)
     rankings_map = {}
-    rank_r = cfbd_get("/rankings", {"year": 2026}, apikey)
+    year = season_year(ctx)
+    rank_r = cfbd_get("/rankings", {"year": year}, apikey)
     if rank_r["status_code"] == 200 and rank_r["json"] != None:
         weeks_data = rank_r["json"]
         if len(weeks_data) > 0:
@@ -214,7 +227,7 @@ def main(c, ctx):
 
     if next_matchup_date == None:
         sched_r = cfbd_get("/games", {
-            "year": 2026,
+            "year": year,
             "team": team1,
         }, apikey)
         if sched_r["status_code"] == 200 and sched_r["json"] != None:
@@ -236,7 +249,8 @@ def main(c, ctx):
 
     past_games = sorted(past_games, key=lambda g: g.get("season", 0), reverse=True)
 
-    last_game_str = "—"
+    # The bitmap fonts are ASCII: an em dash has no glyph and draws as nothing.
+    last_game_str = "-"
     streak_who = ""
     streak_len = 0
 
@@ -359,7 +373,7 @@ def main(c, ctx):
         if r2_val != None:
             c.text(str(r2_val), c.width - 2, text_y, font="4x5", color="white", align="right")
 
-        c.rect(0, 22, 193, 22, fill="gray")
+        c.rect(0, 22, c.width - 1, 22, fill="gray")
 
         # ----- 3-SECTION BOTTOM GRID (LAST | STREAK | NEXT) -----
         bg_last = _color(team1, teams_map, "color")
@@ -385,10 +399,10 @@ def main(c, ctx):
         c.rect(80, 23, 80, 31, fill="gray")
         c.rect(81, 23, 114, 31, fill=bg_streak)
         c.rect(114, 23, 114, 31, fill="gray")
-        c.rect(115, 23, 193, 31, fill="#1c1c1c")
+        c.rect(115, 23, c.width - 1, 31, fill="#1c1c1c")
 
         last_str = "LAST: " + last_game_str.upper()
-        streak_str = (streak_who + ":" + str(streak_len)).upper() if streak_len > 0 else "STR: —"
+        streak_str = (streak_who + ":" + str(streak_len)).upper() if streak_len > 0 else "STR: -"
         next_str = "NEXT: " + next_matchup_date.upper()
 
         c.text(last_str, 3, 24, font="4x7", color="white")
