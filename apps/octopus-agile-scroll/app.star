@@ -35,12 +35,25 @@ def clip_words(c, text, font, maxw):
     return t
 
 def fit(c, text, fonts, maxw):
-    """[font, clipped text] for the largest listed font that fits."""
+    """[font, clipped text] for the largest listed font that fits.
+
+    8x12 is skipped for any string containing a hyphen. That font's '-' glyph
+    is a solid 6x12 block rather than a dash -- verified against the panel's own
+    bitmap_8x12.php, so it is the hardware font that is wrong, not the SDK's
+    copy of it. Date ranges, scores and time spans all carry hyphens, so this
+    would otherwise turn "11A-1P" into "11A<block>1P" at the one size most
+    likely to be chosen for a hero."""
+    t = str(text)
+    dashed = t.find("-") >= 0
     pick = fonts[len(fonts) - 1]
     for f in fonts:
-        if c.text_width(str(text), f) <= maxw:
+        if dashed and f == "8x12":
+            continue
+        if c.text_width(t, f) <= maxw:
             pick = f
             break
+    if dashed and pick == "8x12":
+        pick = "6x8"
     return [pick, clip(c, text, pick, maxw)]
 
 def tab(c, word, accent, x = 4):
