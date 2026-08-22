@@ -96,8 +96,15 @@ def check_app(app_dir) -> tuple:
         used = set(re.findall(r"""c\.image\(\s*['"]([^'"]+)['"]""", src))
         for a in sorted(used - declared):
             errors.append(f"draws `{a}` but it's not listed under `assets:`")
-        for a in sorted(declared - used):
-            warns.append(f"asset `{a}` is declared but never drawn")
+        # An app that computes its asset name -- one crest per team, one icon
+        # per condition -- draws with c.image(name_from_a_lookup, ...), and the
+        # regex above cannot see those. Reporting every declared file as unused
+        # there buries the one that really is: nwsl-scroll alone produced 32
+        # false warnings. If any c.image() call takes a non-literal, stay quiet.
+        computed = re.search(r"""c\.image\(\s*(?!['"])""", src) is not None
+        if not computed:
+            for a in sorted(declared - used):
+                warns.append(f"asset `{a}` is declared but never drawn")
         # Every declared setting must actually be read in the code. Settings are read as
         # ctx.inputs.get("key") / ctx.inputs["key"], so the key appears as a quoted string;
         # if it never does, the setting is dead and confuses people who fill it in.
