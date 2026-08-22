@@ -1,0 +1,42 @@
+gdn: 1
+id: octopus-agile-scroll
+version: 0.1.0
+name: Octopus Agile
+author: glance-led-dev
+description: Half-hourly UK electricity prices from Octopus Agile, the shape of the day ahead, and the cheapest window to run something. No API key.
+category: Science
+entry: app.star
+
+width: 192
+height: 32
+
+# Agile publishes the next day's prices once, mid-afternoon. Half-hourly slots
+# change on the half hour, so this is as often as there is anything new to say.
+refresh: 900
+
+pages: [now, curve, best]
+
+inputs:
+  - key: region
+    type: choice
+    app_input_type: dropdown
+    label: Region
+    default: "C"
+    choices: ["A", "B", "C", "D", "E", "F", "G", "H", "J", "K", "L", "M", "N", "P"]
+    help: >-
+      Your Octopus region letter. C is London, A Eastern England, B East
+      Midlands, D North Wales and Mersey, E West Midlands, F North East,
+      G North West, H Southern, J South East, K South Wales, L South West,
+      M Yorkshire, N Southern Scotland, P Northern Scotland.
+  - key: runhours
+    type: string
+    app_input_type: free-text
+    label: Run time (hours)
+    default: "2"
+    help: How long the thing you want to run takes, so BEST can find a window that fits. 1 to 6.
+  - key: utcoffset
+    type: string
+    app_input_type: free-text
+    label: UTC offset
+    default: "1"
+    help: Hours from UTC. The UK is 1 in summer (BST) and 0 in winter (GMT).
