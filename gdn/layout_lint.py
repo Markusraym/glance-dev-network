@@ -82,6 +82,14 @@ def _branch_ok(src: str, width: int) -> dict:
     ok, stack = {}, []
     for i, ln in enumerate(src.split("\n"), 1):
         s, indent = ln.strip(), len(ln) - len(ln.lstrip())
+        # A blank line measures as indent 0 and a comment sits wherever it was
+        # typed, so treating either as code closed every open branch. One empty
+        # line for breathing room inside `if c.width >= 128:` was enough to
+        # make the whole rest of the branch look like it belonged to both
+        # panels -- which is exactly when this map has to be right.
+        if not s or s.startswith("#"):
+            ok[i] = all(a for _, a in stack)
+            continue
         while stack and indent <= stack[-1][0] and not s.startswith("else"):
             stack.pop()
         m = _WIDTH_IF.match(s)
@@ -89,7 +97,12 @@ def _branch_ok(src: str, width: int) -> dict:
             op, n = m.group(1), int(m.group(2))
             stack.append((indent, {">=": width >= n, ">": width > n,
                                    "<": width < n, "<=": width <= n}[op]))
-        elif s.startswith("else:") and stack:
+        # Only an `else:` at the width-`if`'s OWN indent belongs to it. A
+        # deeper one closes some other `if` inside the branch -- an if/elif
+        # chain picking a font, say -- and flipping the width frame there
+        # marks the whole rest of the branch as belonging to the other panel.
+        # That is how a wide-only draw got paired against a narrow-only one.
+        elif s.startswith("else:") and stack and indent == stack[-1][0]:
             ind0, applies = stack.pop()
             stack.append((ind0, not applies))
         ok[i] = all(a for _, a in stack)
