@@ -1,0 +1,58 @@
+gdn: 1
+id: pomodoro-scroll
+version: 0.1.0
+name: Pomodoro
+author: glance-led-dev
+description: Which focus phase you are in and how far through it, with the whole session laid out as a timeline. No network, no API key.
+category: Productivity
+entry: app.star
+
+width: 192
+height: 32
+
+# The panel cannot animate, so this shows phase and progress rather than a
+# ticking clock. A minute is the finest resolution worth rendering.
+refresh: 60
+
+pages: [timer, cycle]
+
+inputs:
+  - key: start
+    type: string
+    app_input_type: free-text
+    label: Start time
+    default: "9"
+    help: >-
+      When your session starts, on a 24-hour clock. A bare hour is fine ("9",
+      "14"). Minutes are accepted too but note that settings ride a
+      colon-separated descriptor, so "9:30" arrives as "9".
+  - key: work
+    type: string
+    app_input_type: free-text
+    label: Focus minutes
+    default: "25"
+    help: Length of a focus block. 1 to 90.
+  - key: brk
+    type: string
+    app_input_type: free-text
+    label: Break minutes
+    default: "5"
+    help: Length of a short break. 1 to 60.
+  - key: cycles
+    type: string
+    app_input_type: free-text
+    label: Cycles before a long break
+    default: "4"
+    help: How many focus blocks before the long break. 1 to 9.
+  - key: longbreak
+    type: string
+    app_input_type: free-text
+    label: Long break minutes
+    default: "15"
+    help: Length of the long break that ends the loop. 1 to 90.
+  - key: utcoffset
+    type: string
+    app_input_type: free-text
+    label: UTC offset
+    default: "-4"
+    help: Hours from UTC where you are, so the clock and the start time agree.
