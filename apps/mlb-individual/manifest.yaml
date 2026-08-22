@@ -1,0 +1,60 @@
+gdn: 1
+id: mlb-individual
+version: 0.1.0
+name: MLB Scores
+author: dsavitsky
+description: Live, final, and upcoming games for one MLB team, with team-coloured score panels, base runners, and the ball-strike-out count.
+category: Sports
+entry: app.star
+
+width: 64
+height: 32
+
+refresh: 60
+
+pages: [count, players]
+
+inputs:
+  - key: team
+    type: choice
+    app_input_type: dropdown
+    label: Team
+    default: "NYY"
+    choices:
+      - "ARI"
+      - "ATH"
+      - "ATL"
+      - "BAL"
+      - "BOS"
+      - "CHC"
+      - "CHW"
+      - "CIN"
+      - "CLE"
+      - "COL"
+      - "DET"
+      - "HOU"
+      - "KC"
+      - "LAA"
+      - "LAD"
+      - "MIA"
+      - "MIL"
+      - "MIN"
+      - "NYM"
+      - "NYY"
+      - "PHI"
+      - "PIT"
+      - "SD"
+      - "SF"
+      - "SEA"
+      - "STL"
+      - "TB"
+      - "TEX"
+      - "TOR"
+      - "WSH"
+    help: Which team to follow.
+  - key: utcoffset
+    type: string
+    app_input_type: free-text
+    label: UTC offset
+    default: "-4"
+    help: Hours from UTC for start times. Eastern is -4 in summer, -5 in winter.
