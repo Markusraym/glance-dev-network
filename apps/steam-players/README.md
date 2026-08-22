@@ -23,11 +23,11 @@ gdn validate apps/steam-players
 | Setting | Default | Notes |
 |---------|---------|--------|
 | **AppID 1** | `730` | Required for a single-game setup |
-| **AppID 2** | _(blank)_ | Optional |
-| **AppID 3** | _(blank)_ | Optional |
-| **AppID 4** | _(blank)_ | Optional |
+| **AppID 2** | `none` | Optional — leave as `none` if unused |
+| **AppID 3** | `none` | Optional — leave as `none` if unused |
+| **AppID 4** | `none` | Optional — leave as `none` if unused |
 
-AppIDs come from the store URL: `store.steampowered.com/app/730/…`. Leave 2–4 blank to show only one game (single page — no empty frames). Multiple AppIDs rotate on each refresh.
+AppIDs come from the store URL: `store.steampowered.com/app/730/…`. Leave 2–4 as `none` to show only one game (single page — no empty frames). Multiple AppIDs rotate on each refresh.
 
 ## Layout
 
