@@ -74,6 +74,28 @@ def digits_only(s):
             out += ch
     return out
 
+def parse_offset(raw):
+    """Hours from UTC out of the free-text field, or -4 when it isn't a number.
+
+    The field is free text, so "EST", "-4:00" and "FOUR" all reach here, and
+    int() raises on every one of them -- which takes the whole render down and
+    leaves the panel blank because someone typed a timezone name. Read the
+    digits out instead and fall back to Eastern."""
+    t = str(raw).strip()
+    neg = t.startswith("-")
+    if neg or t.startswith("+"):
+        t = t[1:]
+    # Input values ride a colon-separated render descriptor, so "-4:30" already
+    # arrives as "-4"; split anyway for the local preview, where it does not.
+    t = t.split(":")[0].split(".")[0].strip()
+    d = digits_only(t)
+    if d == "":
+        return -4
+    h = int(d)
+    if h > 14:
+        h = 14
+    return -h if neg else h
+
 def local_start(raw, offset):
     """'2026-08-16T19:10Z' -> '7:10P' at the user's offset."""
     parts = raw.split("T")
@@ -296,8 +318,7 @@ def draw(c, ctx, show_players):
     c.fill("black")
 
     abbr = ctx.inputs.get("team", "NYY").strip().upper()
-    off = ctx.inputs.get("utcoffset", "-4").strip()
-    offset = int(off) if off not in ["", "-", "+"] else -4
+    offset = parse_offset(ctx.inputs.get("utcoffset", "-4"))
 
     data = fetch(60)
     if data == None:
