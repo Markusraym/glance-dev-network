@@ -1,0 +1,42 @@
+gdn: 1
+id: steam-players
+version: 0.3.0
+name: Steam Players
+author: reyos86
+description: Live Steam player counts plus review %, price/F2P, genre, and year for AppIDs you type in.
+category: Games
+entry: app.star
+width: 192
+height: 32
+# Rotate multi-game picks on refresh; player/news TTL-cache separately.
+refresh: 120
+pages: [main]
+
+inputs:
+  - key: game1
+    type: string
+    app_input_type: free-text
+    label: AppID 1
+    default: "730"
+    help: Steam AppID from the store URL (store.steampowered.com/app/730/…). Required for a single-game setup.
+
+  - key: game2
+    type: string
+    app_input_type: free-text
+    label: AppID 2
+    default: ""
+    help: Optional second AppID. Leave blank to show only AppID 1.
+
+  - key: game3
+    type: string
+    app_input_type: free-text
+    label: AppID 3
+    default: ""
+    help: Optional third AppID. Leave blank if unused.
+
+  - key: game4
+    type: string
+    app_input_type: free-text
+    label: AppID 4
+    default: ""
+    help: Optional fourth AppID. Leave blank if unused.

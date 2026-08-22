@@ -48,6 +48,7 @@ assets:
   - car-48.png
   - car-5.png
   - car-51.png
+  - car-52.png
   - car-54.png
   - car-6.png
   - car-60.png
@@ -58,9 +59,12 @@ assets:
   - car-77.png
   - car-78.png
   - car-8.png
+  - car-87.png
   - car-88.png
   - car-9.png
+  - car-91.png
   - car-97.png
+  - car-98.png
   - car-1-sm.png
   - car-10-sm.png
   - car-11-sm.png
@@ -91,6 +95,7 @@ assets:
   - car-48-sm.png
   - car-5-sm.png
   - car-51-sm.png
+  - car-52-sm.png
   - car-54-sm.png
   - car-6-sm.png
   - car-60-sm.png
@@ -101,9 +106,12 @@ assets:
   - car-77-sm.png
   - car-78-sm.png
   - car-8-sm.png
+  - car-87-sm.png
   - car-88-sm.png
   - car-9-sm.png
+  - car-91-sm.png
   - car-97-sm.png
+  - car-98-sm.png
 
 inputs:
   - key: series
