@@ -1,0 +1,57 @@
+gdn: 1
+id: google-calendar
+version: 0.1.0
+name: Google Calendar
+author: glance-led-dev
+description: Your next meeting, today's agenda, and the week ahead, read straight from a Google Calendar secret iCal address. No OAuth and no API key.
+category: Productivity
+entry: app.star
+
+width: 64
+height: 32
+
+# The iCal export is a whole-calendar file, so there is nothing to gain from
+# asking for it faster than a person edits a calendar.
+refresh: 300
+
+pages: [next, today, week]
+
+inputs:
+  - key: calid
+    type: string
+    app_input_type: free-text
+    label: Calendar ID
+    default: "en.usa#holiday@group.v.calendar.google.com"
+    help: >-
+      In Google Calendar: Settings, pick your calendar, Integrate calendar,
+      "Secret address in iCal format". Paste the part BETWEEN /ical/ and
+      /private-, e.g. you@gmail.com or c9f2b4@group.calendar.google.com. Do not
+      paste the whole https:// link -- the colon in it stops the value ever
+      reaching the app. The default is Google's public US holiday calendar, so
+      the app shows something real before you have set it up; replace it with
+      your own.
+  - key: icalkey
+    type: string
+    app_input_type: free-text
+    label: Secret key
+    default: ""
+    help: >-
+      The private-XXXX token from that same address, with or without the
+      "private-" prefix. Leave blank if the calendar is public.
+  - key: utcoffset
+    type: string
+    app_input_type: free-text
+    label: UTC offset
+    default: "-4"
+    help: >-
+      Hours from UTC where you are, used only for events your calendar stores in
+      UTC. Eastern is -4 in summer and -5 in winter; Pacific is -7 / -8. Events
+      that carry their own time zone are shown exactly as written, so most
+      calendars never need this changed.
+  - key: hidealldays
+    type: choice
+    app_input_type: dropdown
+    label: All-day events
+    default: "Show"
+    choices: ["Show", "Hide"]
+    help: Hide keeps birthdays and holidays out of the agenda.
