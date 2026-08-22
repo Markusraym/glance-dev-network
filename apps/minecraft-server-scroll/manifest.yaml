@@ -1,0 +1,25 @@
+gdn: 1
+id: minecraft-server-scroll
+version: 0.1.0
+name: Minecraft Server
+author: glance-led-dev
+description: Whether a Minecraft server is up and who is playing on it, with the world's own blocky look. Public API, no key.
+category: Games
+entry: app.star
+
+width: 192
+height: 32
+refresh: 120
+
+pages: [mc, players]
+
+inputs:
+  - key: host
+    type: string
+    app_input_type: free-text
+    label: Server address
+    default: "mc.hypixel.net"
+    help: >-
+      The server address, without any port or https. Works for Java and Bedrock
+      servers that mcsrvstat.us can reach. The default is a large public server
+      so the app shows something real before you set your own.
