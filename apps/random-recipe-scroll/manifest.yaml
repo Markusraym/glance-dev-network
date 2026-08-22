@@ -1,0 +1,19 @@
+gdn: 1
+id: random-recipe-scroll
+version: 0.1.0
+name: Random Recipe
+author: glance-led-dev
+description: A dish to cook tonight and the shopping list to make it, from TheMealDB. No API key and nothing to configure.
+category: Lifestyle
+entry: app.star
+
+width: 192
+height: 32
+
+# One meal a day. Dinner should not change every time the panel cycles, so the
+# fetch is cached for twelve hours.
+refresh: 900
+
+pages: [tonight, basket]
+
+inputs: []
