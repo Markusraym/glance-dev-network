@@ -1,6 +1,6 @@
 gdn: 1
 id: steam-players
-version: 0.3.0
+version: 0.3.1
 name: Steam Players
 author: reyos86
 description: Live Steam player counts plus review %, price/F2P, genre, and year for AppIDs you type in.
@@ -20,23 +20,24 @@ inputs:
     default: "730"
     help: Steam AppID from the store URL (store.steampowered.com/app/730/…). Required for a single-game setup.
 
+  # Defaults are "none" (not blank) so the Glance mobile form can save with only AppID 1 filled.
   - key: game2
     type: string
     app_input_type: free-text
-    label: AppID 2
-    default: ""
-    help: Optional second AppID. Leave blank to show only AppID 1.
+    label: AppID 2 (or none)
+    default: "none"
+    help: Optional second AppID. Leave as none to show only AppID 1.
 
   - key: game3
     type: string
     app_input_type: free-text
-    label: AppID 3
-    default: ""
-    help: Optional third AppID. Leave blank if unused.
+    label: AppID 3 (or none)
+    default: "none"
+    help: Optional third AppID. Leave as none if unused.
 
   - key: game4
     type: string
     app_input_type: free-text
-    label: AppID 4
-    default: ""
-    help: Optional fourth AppID. Leave blank if unused.
+    label: AppID 4 (or none)
+    default: "none"
+    help: Optional fourth AppID. Leave as none if unused.
