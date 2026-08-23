@@ -1,0 +1,28 @@
+gdn: 1
+id: planes-overhead-scroll
+version: 0.1.0
+name: Planes Overhead
+author: glance-led-dev
+description: Aircraft above you right now, each drawn at its real heading, placed in the sky by altitude. Live ADS-B, no API key.
+category: Transportation
+entry: app.star
+
+width: 192
+height: 32
+refresh: 120
+
+pages: [overhead, sky]
+
+inputs:
+  - key: zip
+    type: string
+    app_input_type: free-text
+    label: ZIP code
+    default: "11201"
+    help: A US ZIP code. Sets the patch of sky the app watches.
+  - key: radius
+    type: string
+    app_input_type: free-text
+    label: Radius (miles)
+    default: "20"
+    help: How far out to look, 5 to 250. Smaller keeps it to aircraft you could actually see.
