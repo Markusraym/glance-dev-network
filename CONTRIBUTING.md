@@ -33,6 +33,12 @@ submitting one is safe by design — it can only draw a picture, nothing else.
 - **No secrets.** Never commit API keys. A dev key goes in `secrets.dev.yaml` (git-ignored);
   in production Glance injects keys server-side.
 - **Assets are small PNGs**, listed under `assets:` in your manifest.
+- **A README if your app needs setting up.** Anything that asks for an API key, a token
+  or a URL should have a `README.md` in its folder saying where to get one. The app
+  catalogue links straight to it (`help_url` in `/api/apps`, which defaults to this app's
+  folder on GitHub), so that file is what a person reads when they tap the info icon and
+  wonder what a "secret key" is. Set `help_url:` in the manifest only to point somewhere
+  else.
 - **Text is UPPERCASE** (the panel fonts have no lowercase).
 
 ## What happens next

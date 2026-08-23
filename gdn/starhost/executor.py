@@ -314,6 +314,41 @@ def app_page_count(app_dir) -> int:
     return mpages if isinstance(mpages, int) else len(mpages or [])
 
 
+# Where an app's setup instructions live. Every app folder in the catalogue is
+# browsable on GitHub and renders its README, so the link is derivable from the
+# id and does not need storing 200-odd times. `help_url` in the manifest
+# overrides it for anything documented somewhere else.
+HELP_BASE = "https://github.com/glance-led-dev/glance-dev-network/tree/main/apps"
+
+
+def app_help_url(app_dir) -> str:
+    """The page a viewer should be sent to when they ask how to set this up."""
+    app_dir = Path(app_dir)
+    manifest = load_manifest(app_dir)
+    override = str(manifest.get("help_url") or "").strip()
+    if override:
+        return override
+    return "%s/%s" % (HELP_BASE, str(manifest.get("id", app_dir.name)))
+
+
+def app_meta(app_dir) -> dict:
+    """The catalogue entry for one app: what it is, and where to read about it."""
+    app_dir = Path(app_dir)
+    m = load_manifest(app_dir)
+    app_id = str(m.get("id", app_dir.name))
+    return {
+        "id": app_id,
+        "name": str(m.get("name", app_id)),
+        "description": str(m.get("description", "")),
+        "category": str(m.get("category", "")),
+        "author": str(m.get("author", "")),
+        "version": str(m.get("version", "")),
+        "width": int(m.get("width", 192)),
+        "height": int(m.get("height", 32)),
+        "help_url": app_help_url(app_dir),
+    }
+
+
 def esp_endpoint(app_dir) -> str:
     """The `GDN:width:height:id:pages` descriptor the render server / panel uses."""
     app_dir = Path(app_dir)
