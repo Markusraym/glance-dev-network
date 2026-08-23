@@ -1,0 +1,22 @@
+gdn: 1
+id: flight-status
+version: 0.1.0
+name: Flight Status
+author: glance-led-dev
+description: Where one flight is right now — how far along the route, how high, how fast, and how long until it lands. Live ADS-B, no API key.
+category: Transportation
+entry: app.star
+
+width: 192
+height: 32
+refresh: 60
+
+pages: [flight, aircraft]
+
+inputs:
+  - key: flight
+    type: string
+    app_input_type: free-text
+    label: Flight number
+    default: "BA117"
+    help: The number off the boarding pass (UA415) or the radio callsign (UAL415). Either works.
