@@ -13,8 +13,8 @@ from pathlib import Path
 from flask import Flask, Response, abort, g, jsonify, request
 from werkzeug.middleware.proxy_fix import ProxyFix
 
-from gdn.starhost import (StarError, StarTimeout, app_page_count, esp_endpoint,
-                          run_star_app_sandboxed)
+from gdn.starhost import (StarError, StarTimeout, app_meta, app_page_count,
+                          esp_endpoint, run_star_app_sandboxed)
 from gdn.scene import SceneError, render_scene
 
 # This file is at <repo>/server/server.py, so the apps live one level up.
@@ -112,11 +112,18 @@ def healthz():
 
 @app.get("/api/apps")
 def api_apps():
-    return jsonify([
-        {"id": a, "descriptor": esp_endpoint(APPS / a), "pages": app_page_count(APPS / a),
-         "render": f"/render/{a}?page=1"}
-        for a in _apps()
-    ])
+    # The catalogue used to be ids and nothing else, so anything showing an app
+    # to a person had to go and read the manifests itself. It now carries the
+    # name, the blurb, the category and -- the point of this -- help_url, so an
+    # "how do I set this up?" link has somewhere to go.
+    out = []
+    for a in _apps():
+        meta = app_meta(APPS / a)
+        meta["descriptor"] = esp_endpoint(APPS / a)
+        meta["pages"] = app_page_count(APPS / a)
+        meta["render"] = f"/render/{a}?page=1"
+        out.append(meta)
+    return jsonify(out)
 
 
 @app.get("/render/<app_id>")

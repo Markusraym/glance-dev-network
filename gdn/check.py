@@ -21,6 +21,7 @@ _NOT_DRAWN = re.compile(r"%[#0\- +]*\d*(?:\.\d+)?[a-zA-Z%]|\\[a-zA-Z]")
 _KNOWN_KEYS = {
     "gdn", "id", "version", "name", "author", "description", "entry",
     "width", "height", "refresh", "pages", "inputs", "assets", "category",
+    "help_url",
 }
 
 _DOCSTRING = re.compile(r'"""(?:.|\n)*?"""|\'\'\'(?:.|\n)*?\'\'\'')
