@@ -1,0 +1,14 @@
+gdn: 1
+id: airport-delays
+version: 0.1.0
+name: Airport Delays
+author: glance-led-dev
+description: Which US airports are holding aircraft on the ground right now — ground stops, ground delay programmes and closures, straight from the FAA. No API key.
+category: Transportation
+entry: app.star
+
+width: 192
+height: 32
+refresh: 300
+
+pages: [faa, worst]
