@@ -5,9 +5,10 @@
 #   Name / price / F2P / genre / year — Store appdetails
 #   Review % — Store appreviews summary
 #
-# Settings: type AppIDs into AppID 1–4 (blank = unused). One page only — a
-# single AppID never pads the playlist with empty frames. Multiple AppIDs
-# rotate on each refresh.
+# Settings: type AppIDs into AppID 1–4 (none / blank = unused). One page only —
+# a single AppID never pads the playlist with empty frames. Multiple AppIDs
+# rotate on each refresh. Optional slots default to "none" so mobile can save
+# without filling every field.
 #
 # Bitmap fonts are UPPERCASE ONLY.
 
@@ -117,7 +118,7 @@ def games_list(ctx):
     out = []
     seen = {}
     for key in ["game1", "game2", "game3", "game4"]:
-        default = "730" if key == "game1" else ""
+        default = "730" if key == "game1" else "none"
         raw = ctx.inputs.get(key, default)
         if raw == None:
             raw = default
