@@ -257,32 +257,48 @@ def ago(mins):
 # app threw that away by bucketing to eight compass points and drawing a 5x5
 # blob.
 #
-# Three approaches were tried. Rotating a sprite by an arbitrary angle means
-# resampling, and resampling a 15px silhouette shreds it -- the cardinals
-# survive and every diagonal becomes a spiky mess. Deriving 16 bearings from
-# three hand-drawn masters via the square's symmetries is pixel-exact, but
-# still only gives 16 fixed angles and needs 48 sprites for three families.
+# Getting a 16px aircraft to point at 318.09 degrees took three attempts.
 #
-# So the aircraft is not a sprite at all. It is drawn from three lines -- a
-# fuselage along the heading, a wing bar across it, a tailplane -- rotated to
-# the EXACT bearing. Bresenham is clean at every angle, so 318.09 degrees draws
-# at 318.09 degrees, there is no sprite data in the file, and the shape is
-# whatever the aircraft family needs it to be.
+#   1. Rotate a sprite. Nearest-neighbour resampling breaks every 1px feature
+#      into dashes; anything smoother turns a hard-edged silhouette to mush.
+#   2. Sixteen bearings from three masters via the square's symmetries. Exact,
+#      but 16 fixed angles and 48 sprites for three families.
+#   3. Draw the outline from rotated lines. Clean at the cardinals, a scarecrow
+#      at every diagonal -- a skeleton of 1px strokes has nothing holding it
+#      together once the strokes stop being horizontal and vertical.
+#
+# What actually works is to stop drawing lines and describe the aircraft as an
+# AREA. The silhouette is a set of inequalities in the aircraft's own frame --
+# a tapered fuselage, two swept trapezoid wings, a tailplane -- and the panel
+# is rasterised by walking the pixels the aircraft could cover and asking each
+# one "in the aircraft's frame, am I inside it?". Solid shapes survive rotation
+# the way outlines do not: there is nothing to disconnect, no feature thinner
+# than the shape itself, and the angle is exact rather than snapped.
+#
+#   panel -> body:  u = fx*px + fy*py,  v = fx*py - fy*px
+#   where f = (sin B, -cos B) is the nose direction, u runs toward the nose and
+#   v to the starboard wing.
 
 DEG = 3.141592653589793 / 180.0
 
-# family -> [nose, tail, wing span, tail span, wing pos, tail pos, fuselage
-#            thickness, wing thickness, engine pods]
+# family -> [nose, tail, body half-width, half-span, wing station, root chord,
+#            tip chord, sweep, tail half-span, tail station, tail root chord,
+#            tail tip chord, tail sweep, engines per side]
+#
+# The proportions are real ones. A 737 is about as long as its span; a 777 is
+# longer than it is wide and carries visible nacelles; a Cessna has a stubby
+# nose, a long tail moment and a straight wing set high and forward. Those
+# three silhouettes are distinguishable at 16 pixels, which is the whole point
+# of having families at all.
 SHAPES = {
-    "jet":   [6.5, 6.0, 6.8, 3.2, 0.6, -4.6, 3, 2, 0],
-    "light": [5.5, 5.5, 6.8, 3.0, 1.6, -4.4, 2, 2, 0],
-    "heavy": [7.0, 6.5, 7.2, 3.8, 0.2, -5.2, 3, 2, 4],
-    "rotor": [4.0, 4.5, 0.0, 2.6, 0.0, -4.0, 3, 2, 0],
+    "jet":   [7.5, 6.5, 1.3, 7.5, 0.0, 4.6, 1.5, 2.8, 3.4, -5.0, 2.4, 1.0, 1.3, 0],
+    "heavy": [9.0, 7.5, 1.4, 8.8, -0.4, 4.8, 1.6, 2.9, 4.0, -6.0, 2.6, 1.1, 1.4, 2],
+    "light": [4.6, 6.6, 1.3, 7.0, 2.2, 2.6, 2.1, 0.2, 3.2, -5.8, 2.1, 1.5, 0.2, 0],
 }
 
 def family_for(cat, typ):
     """ADS-B emitter category first, type code as a fallback. A7 is the only
-    unambiguous rotorcraft signal in the feed; A5/A4 are the wide-bodies."""
+    unambiguous rotorcraft signal in the feed; A5 and A4 are the wide-bodies."""
     ca = str(cat).upper()
     if ca == "A7":
         return "rotor"
@@ -295,84 +311,125 @@ def family_for(cat, typ):
         return "rotor"
     if t.startswith("C1") or t.startswith("P2") or t.startswith("PA") or t.startswith("SR"):
         return "light"
-    if t.startswith("B74") or t.startswith("A38") or t.startswith("B77") or t.startswith("A35"):
-        return "heavy"
+    for h in ["B74", "B77", "B78", "B76", "A38", "A35", "A33", "A34", "MD1", "IL9"]:
+        if t.startswith(h):
+            return "heavy"
     return "jet"
 
-def _thick_line(c, x0, y0, x1, y1, t, col):
-    """A line with body. Offsetting perpendicular keeps the thickness even at
-    every angle; offsetting in x or y would fatten diagonals and starve the
-    cardinals."""
-    c.line(int(x0), int(y0), int(x1), int(y1), col)
-    if t <= 1:
-        return
-    dx, dy = x1 - x0, y1 - y0
-    ln = math.sqrt(dx * dx + dy * dy)
-    if ln < 0.001:
-        return
-    px, py = -dy / ln, dx / ln
-    k = 1
-    for _ in range(4):
-        if k > (t - 1) // 2:
-            break
-        for s in [-1, 1]:
-            ox, oy = px * k * s, py * k * s
-            c.line(int(x0 + ox), int(y0 + oy), int(x1 + ox), int(y1 + oy), col)
-        k += 1
+def _in_body(u, v, nose, tail, bw):
+    """Fuselage: full width through the middle, tapering to a point at the nose
+    and to a stub at the tail."""
+    if u > nose or u < -tail:
+        return False
+    w = bw
+    nt = nose * 0.5
+    if u > nose - nt:
+        w = bw * (nose - u) / nt
+    tt = tail * 0.45
+    if u < -tail + tt:
+        w2 = bw * 0.45 + bw * 0.55 * (u + tail) / tt
+        if w2 < w:
+            w = w2
+    d = v if v >= 0 else -v
+    return d <= w
 
-def draw_aircraft(c, cx, cy, bearing, fam, col, scale = 1):
+def _in_wing(u, v, span, st, croot, ctip, sweep):
+    """A swept, tapered trapezoid either side of the body. The chord shrinks
+    and the whole panel slides aft as you go outboard, which is the one cue
+    that says 'airliner' rather than 'plus sign'."""
+    if span <= 0:
+        return False
+    t = v if v >= 0 else -v
+    if t > span:
+        return False
+    f = t / span
+    d = u - (st - sweep * f)
+    if d < 0:
+        d = -d
+    return d <= (croot + (ctip - croot) * f) / 2.0
+
+def draw_aircraft(c, cx, cy, bearing, fam, col, scale = 1.0):
     """Top-down aircraft centred on (cx, cy) pointing at `bearing` degrees,
     0 = north, clockwise. `bearing` may be None for something on the ground
-    with no heading -- the caller decides what to draw instead; pointing north
-    and inventing a heading would be a lie."""
+    with no heading; the caller decides what to draw instead, because pointing
+    north and inventing a heading would be a lie."""
     s = SHAPES[fam] if fam in SHAPES else SHAPES["jet"]
     a = bearing * DEG
     fx, fy = math.sin(a), -math.cos(a)
-    px, py = -fy, fx
-    nose, tail = s[0] * scale, s[1] * scale
-    span, tspan = s[2] * scale, s[3] * scale
-    wat, tat = s[4] * scale, s[5] * scale
 
-    _thick_line(c, cx - fx * tail, cy - fy * tail,
-                cx + fx * nose, cy + fy * nose, s[6], col)
-    if span > 0:
-        wx, wy = cx + fx * wat, cy + fy * wat
-        _thick_line(c, wx - px * span, wy - py * span,
-                    wx + px * span, wy + py * span, s[7], col)
-    tx, ty = cx + fx * tat, cy + fy * tat
-    _thick_line(c, tx - px * tspan, ty - py * tspan,
-                tx + px * tspan, ty + py * tspan, s[7], col)
-    if s[8] == 4:
-        wx, wy = cx + fx * wat, cy + fy * wat
-        for off in [0.45, 0.8]:
-            for sg in [-1, 1]:
-                ex = wx + px * span * off * sg + fx * 0.9
-                ey = wy + py * span * off * sg + fy * 0.9
-                c.pixel(int(ex), int(ey), col)
+    nose, tail, bw = s[0] * scale, s[1] * scale, s[2] * scale
+    span, wst = s[3] * scale, s[4] * scale
+    croot, ctip, sweep = s[5] * scale, s[6] * scale, s[7] * scale
+    tspan, tst = s[8] * scale, s[9] * scale
+    tcroot, tctip, tsweep = s[10] * scale, s[11] * scale, s[12] * scale
+    if bw < 0.5:
+        bw = 0.5
 
-def draw_rotor(c, cx, cy, bearing, col, blade_col):
-    """A rotorcraft from above. Blades are drawn as two crossed lines rather
-    than a ring -- a ring at this size reads as a no-entry sign. The blades do
-    not rotate with heading (they spin, so any angle is honest), but the body
-    and tail boom do, which is what actually tells you where it is going."""
-    x, y = int(cx), int(cy)
-    c.line(x - 6, y - 6, x + 6, y + 6, blade_col)
-    c.line(x - 6, y + 6, x + 6, y - 6, blade_col)
+    # Reach of the shape in its own frame, which bounds the pixels worth
+    # testing. Nothing outside this square can possibly be inside the aircraft.
+    r = nose
+    for v in [tail, span, tspan]:
+        if v > r:
+            r = v
+    r = int(r + 1.5)
+
+    ix, iy = int(cx), int(cy)
+    for py in range(-r, r + 1):
+        y = iy + py
+        if y < 0 or y >= c.height:
+            continue
+        for px in range(-r, r + 1):
+            x = ix + px
+            if x < 0 or x >= c.width:
+                continue
+            u = fx * px + fy * py
+            v = fx * py - fy * px
+            if _in_body(u, v, nose, tail, bw):
+                c.pixel(x, y, col)
+            elif _in_wing(u, v, span, wst, croot, ctip, sweep):
+                c.pixel(x, y, col)
+            elif _in_wing(u, v, tspan, tst, tcroot, tctip, tsweep):
+                c.pixel(x, y, col)
+
+    # Nacelles, on the wide-bodies only. Two dots a side is the difference
+    # between "a plane" and "a big plane" at this size.
+    if s[13] > 0 and scale > 0.7:
+        for sg in [-1, 1]:
+            for off in [0.4, 0.68]:
+                bu = wst - sweep * off + croot * 0.35
+                bv = span * off * sg
+                c.pixel(int(cx + fx * bu - fy * bv), int(cy + fy * bu + fx * bv), col)
+
+def draw_rotor(c, cx, cy, bearing, col, blade_col, scale = 1.0):
+    """A rotorcraft from above: a dotted disc, a cabin, a thin boom and a tail
+    rotor. The disc is a ring of dots rather than two crossed lines -- crossed
+    lines just read as an X, and a solid ring reads as a no-entry sign, but a
+    broken ring reads as something spinning. It does not turn with the heading,
+    because it is spinning and any angle would be honest; the cabin and the
+    boom do, and that is what says where the thing is going."""
     b = (bearing if bearing != None else 0.0) * DEG
     fx, fy = math.sin(b), -math.cos(b)
-    c.fill_circle(x, y, 2, col)
-    tx, ty = x - fx * 7, y - fy * 7
-    c.line(x, y, int(tx), int(ty), col)
-    px, py = -fy, fx
-    c.line(int(tx - px * 2), int(ty - py * 2), int(tx + px * 2), int(ty + py * 2), col)
+    dr = 7.0 * scale
+    for k in range(0, 360, 30):
+        a = k * DEG
+        c.pixel(int(cx + math.sin(a) * dr), int(cy - math.cos(a) * dr), blade_col)
+    tx, ty = cx - fx * 7.5 * scale, cy - fy * 7.5 * scale
+    c.line(int(cx - fx * 1.5 * scale), int(cy - fy * 1.5 * scale),
+           int(tx), int(ty), col)
+    t = 2.0 * scale
+    c.line(int(tx - fy * t), int(ty + fx * t),
+           int(tx + fy * t), int(ty - fx * t), col)
+    c.fill_circle(int(cx + fx * scale), int(cy + fy * scale),
+                  2 if scale > 0.7 else 1, col)
+    c.pixel(int(cx + fx * 3.6 * scale), int(cy + fy * 3.6 * scale), col)
 
 # ---- data -----------------------------------------------------------------
 ADSB = "https://api.adsb.lol/v2/point/"
 ADSBDB = "https://api.adsbdb.com/v0/callsign/"
 ZIP = "https://api.zippopotam.us/us/"
 
-# Altitude bands. The colour says how high without reading a number, and the
-# band is also where the aircraft sits vertically on the sky page.
+# Altitude bands. The colour says how high without reading a number, and it is
+# the same colour the aircraft is drawn in on both pages.
 BANDS = [
     [1500, "#FF4FCB", "PATTERN"],
     [5000, "#FF6A00", "LOW"],
@@ -390,6 +447,11 @@ def band_of(alt):
 def kt_to_mph(kt):
     return kt * 1151 // 1000
 
+def nm10_to_mi10(t):
+    """Tenths of a nautical mile -> tenths of a statute mile. adsb.lol works in
+    nautical miles throughout; nobody standing under an aircraft does."""
+    return t * 1151 // 1000
+
 def read_sky(ctx):
     zipc = str(ctx.inputs.get("zip", "")).strip()
     radius = num(ctx.inputs.get("radius", "20"), 20)
@@ -397,8 +459,15 @@ def read_sky(ctx):
         radius = 5
     if radius > 250:
         radius = 250
+    # The endpoint's radius argument is nautical miles, so a user asking for
+    # 20 miles was quietly getting 23. Convert on the way in, and back on the
+    # way out, and the panel only ever says miles.
+    rad_nm = radius * 1000 // 1151
+    if rad_nm < 4:
+        rad_nm = 4
     st = {"state": "ok", "planes": [], "zip": zipc, "radius": radius,
-          "place": "", "now": ctx.now.unix // 60}
+          "rad_nm": rad_nm, "place": "", "lat": 0.0, "lon": 0.0,
+          "now": ctx.now.unix // 60}
     if zipc == "":
         st["state"] = "setup"
         return st
@@ -415,8 +484,13 @@ def read_sky(ctx):
     lat = str(get(p0, "latitude", ""))
     lon = str(get(p0, "longitude", ""))
     st["place"] = str(get(p0, "place name", "")).upper()
+    # The scope plots true relative bearing, so the observer's position has to
+    # survive as a number rather than the string the ZIP service hands back.
+    la, lo = dec(lat, 4), dec(lon, 4)
+    st["lat"] = la / 10000.0 if la != None else 0.0
+    st["lon"] = lo / 10000.0 if lo != None else 0.0
 
-    r = http.get(ADSB + lat + "/" + lon + "/" + str(radius), ttl_seconds = 60)
+    r = http.get(ADSB + lat + "/" + lon + "/" + str(rad_nm), ttl_seconds = 60)
     if r["status_code"] != 200 or r["json"] == None:
         st["state"] = "offline"
         return st
@@ -434,6 +508,10 @@ def read_sky(ctx):
         track = a.get("track", None)
         rate = a.get("baro_rate", a.get("geom_rate", None))
         st["planes"].append({
+            # Military and blocked aircraft come through with no callsign, no
+            # registration and no type. The ICAO hex is always there, and
+            # "A4C1B2" is a real thing a spotter can look up; "UNKNOWN" is not.
+            "hex": str(get(a, "hex", "")).strip().upper(),
             "reg": str(get(a, "r", "")).strip().upper(),
             "call": str(get(a, "flight", "")).strip().upper(),
             "type": str(get(a, "t", "")).strip().upper(),
@@ -442,7 +520,8 @@ def read_sky(ctx):
             "track": track,
             "rate": intpart(rate, 0) if rate != None else 0,
             "gs": intpart(get(a, "gs", 0), 0),
-            "dst": dec(str(get(a, "dst", "0")), 1) or 0,
+            "dst": nm10_to_mi10(dec(str(get(a, "dst", "0")), 1) or 0),
+            "lat": a.get("lat", None), "lon": a.get("lon", None),
             "squawk": str(get(a, "squawk", "")).strip(),
             "seen": num(get(a, "seen", 0), 0),
         })
@@ -485,54 +564,173 @@ def route_for(call):
     return [str(o).upper(), str(d).upper(),
             str(dig(fr, ["airline", "name"], "")).upper()]
 
-def rate_word(r):
-    if r > 300:
-        return ["CLIMB", "#00E36B"]
-    if r < -300:
-        return ["DESCEND", "#FFB300"]
-    return ["LEVEL", "gray"]
-
-def alt_text(p):
-    if p["ground"]:
-        return "GROUND"
-    if p["alt"] >= 10000:
-        return str(p["alt"] // 1000) + "K FT"
-    return fmt.commas(p["alt"]) + " FT"
+def miles(t):
+    """Tenths of a mile -> a string with one decimal place. Starlark has no
+    float formatting, so the tenths are split out by hand."""
+    return str(t // 10) + "." + str(t % 10)
 
 # ---- pages ----------------------------------------------------------------
-# The one idea: the aircraft is drawn at its REAL heading, big, and the panel
-# is read as sky. On OVERHEAD the aircraft sits at the height its altitude band
-# puts it; on SKY every aircraft in range is placed by distance and drawn
-# pointing where it is actually going. Nothing here is a list with an icon
-# beside it.
+# One idea holds the whole app together: the middle of the panel is a
+# cross-section of your airspace, seen from the side. The aircraft's height on
+# the panel, the tape down the right edge and the rooftops along the bottom all
+# sit on ONE altitude axis. A red-eye slides along the top of the frame; an
+# arrival sinks toward the roofs. You read the altitude the way you would read
+# it out of a window, before any number reaches you.
+#
+# The axis is square-root scaled, which spends its fourteen usable rows below
+# 10,000ft where the drama is: 1,200 and 4,600 are visibly different heights,
+# while 30,000 and 40,000 both just mean "very high".
 
-SKY_TOP = 3
-SKY_BOT = 29
+SKY_L = 69
+SKY_R = 178
+ALT_TOP = 9                # the row a 40,000ft aircraft sits on
+ALT_GND = 22               # the row something on the ground sits on
 
-def alt_y(p):
-    """Vertical position for an altitude: high things ride high on the panel."""
-    if p["ground"]:
-        return SKY_BOT
-    a = p["alt"]
+NIGHT = "#2A2D36"          # the rooftops
+LIT = "#6A6D7C"            # a window with someone still awake behind it
+STAR_A = "#565968"
+STAR_B = "#383B46"
+
+CLIMB = "#00E36B"
+SINK = "#FFB300"
+ALARM = "#FF2D2D"
+
+SKYLINE = """
+........#................................................................................#
+.......###....................................#.....####...............................#######
+.......###...........####.....#..........##########.####.............#.....###.........#######.................###
+######.###...........####..#######.......##########.####.........########..###.........#######.......#########.###
+######.###..########.####..#######.###...##########.####..######.########..###.#####...#######.####..#########.###
+"""
+
+# Offsets into the skyline rather than panel columns, so a lit window stays in
+# its building if the silhouette is ever redrawn.
+WINDOWS = [[1, 31], [8, 30], [23, 31], [30, 31], [44, 30], [54, 30], [69, 31],
+           [76, 30], [89, 29], [102, 31], [112, 31]]
+
+# Panel coordinates, two brightnesses, kept clear of the readouts. Depth, not
+# a scatter of identical dots.
+STARS = [[73, 8, 0], [81, 15, 1], [88, 21, 0], [95, 11, 1], [101, 18, 0],
+         [124, 12, 0], [131, 20, 1], [139, 9, 0], [146, 16, 1], [151, 22, 0],
+         [77, 19, 1], [160, 12, 0], [168, 20, 1], [176, 15, 0]]
+
+# 4x5 has no '>' glyph -- the route line rendered as "EWR  IST" with a hole in
+# it until this replaced it. A filled triangle also reads better than a chevron
+# at three pixels wide.
+ARROW = """
+#..
+##.
+###
+##.
+#..
+"""
+CHEV_UP = """
+..#..
+.#.#.
+#...#
+"""
+CHEV_DN = """
+#...#
+.#.#.
+..#..
+"""
+
+def alt_y(alt, ground):
+    """Panel row for an altitude. The square-root curve means a thousand feet
+    near the ground is worth several pixels and a thousand at cruise is worth
+    almost none, which is the right emphasis for something you glance at."""
+    if ground:
+        return ALT_GND
+    a = alt
     if a > 40000:
         a = 40000
-    return SKY_BOT - a * (SKY_BOT - SKY_TOP) // 40000
+    if a < 0:
+        a = 0
+    return ALT_GND - int((ALT_GND - ALT_TOP) * math.sqrt(a / 40000.0) + 0.5)
 
-def plane_glyph(c, cx, cy, p, col, scale = 1):
+def draw_scene(c):
+    for s in STARS:
+        c.pixel(s[0], s[1], STAR_A if s[2] == 0 else STAR_B)
+    c.sprite(SKYLINE, SKY_L, 27, color = NIGHT)
+    for w in WINDOWS:
+        c.pixel(SKY_L + w[0], w[1], LIT)
+
+def plane_glyph(c, cx, cy, p, col, scale = 1.0):
     fam = family_for(p["cat"], p["type"])
     if fam == "rotor":
-        draw_rotor(c, cx, cy, p["track"], col, color.dim(col, 55))
+        draw_rotor(c, cx, cy, p["track"], col, color.dim(col, 60), scale)
     elif p["track"] == None:
-        # No heading: something parked. Drawing it pointing north would invent
-        # a fact, so it gets a plan view with no direction instead.
+        # No heading. Pointing it north would invent a fact, so it is drawn
+        # dimmed and facing the reader instead.
         draw_aircraft(c, cx, cy, 0.0, fam, color.dim(col, 55), scale)
     else:
         draw_aircraft(c, cx, cy, p["track"], fam, col, scale)
 
-def fail(c, st):
+def draw_trail(c, cx, cy, p, col):
+    """A dashed wake along the reverse track. It is the only motion a panel
+    that cannot animate is allowed, and it doubles the heading cue: you see
+    where the aircraft came from as well as where its nose points."""
+    if p["track"] == None or p["ground"]:
+        return
+    a = p["track"] * DEG
+    fx, fy = math.sin(a), -math.cos(a)
+    faint = color.dim(col, 52)
+    d = 12.0
+    for k in range(9):
+        x, y = int(cx - fx * d), int(cy - fy * d)
+        if x < SKY_L or x > SKY_R or y < 1 or y > 26:
+            return
+        if k % 2 == 0:
+            c.pixel(x, y, faint)
+        d += 3.0
+
+def rate_chevrons(c, x, my, rate):
+    """One chevron at 300 fpm, two at 1,200, three at 2,400 -- a stack you can
+    count from across a room, instead of a signed number you have to read."""
+    r = rate if rate >= 0 else -rate
+    n = 0
+    if r >= 300:
+        n = 1
+    if r >= 1200:
+        n = 2
+    if r >= 2400:
+        n = 3
+    for i in range(n):
+        if rate > 0:
+            y = my - 6 - 4 * i
+            if y < 1:
+                return
+            c.sprite(CHEV_UP, x, y, color = CLIMB)
+        else:
+            y = my + 4 + 4 * i
+            if y > 28:
+                return
+            c.sprite(CHEV_DN, x, y, color = SINK)
+
+def trend_color(p):
+    if p["ground"]:
+        return "gray"
+    if p["rate"] > 300:
+        return CLIMB
+    if p["rate"] < -300:
+        return SINK
+    return "#78DCFF"
+
+def alt_short(p):
+    if p["ground"]:
+        return "GND"
+    if p["alt"] >= 10000:
+        return str(p["alt"] // 1000) + "K"
+    return str((p["alt"] // 100) * 100)
+
+def hero_color(p):
+    return ALARM if emergency(p) else band_of(p["alt"])[1]
+
+def fail(c, st, word):
+    tab(c, word, "#78DCFF")
     if st["state"] == "setup":
         rail(c, STRUCT)
-        message(c, "ADD YOUR ZIP CODE", "US ZIP - SETS WHERE TO LOOK UP")
+        message(c, "ADD A ZIP CODE", "SETS THE PATCH OF SKY TO WATCH")
         return True
     if st["state"] == "badzip":
         rail(c, STRUCT)
@@ -540,110 +738,171 @@ def fail(c, st):
         return True
     if st["state"] == "offline":
         rail(c, OFFLINE)
-        message(c, "NO ADS-B FEED", "CANT REACH THE RECEIVER NETWORK")
-        return True
-    if st["state"] == "empty":
-        rail(c, STRUCT)
-        message(c, "EMPTY SKY", "NOTHING IN RANGE RIGHT NOW")
+        message(c, "ADS-B OFFLINE", "CANT REACH THE RECEIVER NETWORK")
         return True
     return False
 
-# ------------------------------------------------------- page 1: overhead
+# ---------------------------------------------------------- page 1: overhead
 def overhead(c, ctx):
     c.fill("black")
     st = read_sky(ctx)
-    if fail(c, st):
-        tab(c, "SKY", "#78DCFF")
+    if fail(c, st, "OVERHEAD"):
         return
+    draw_scene(c)
+    if st["state"] == "empty":
+        rail(c, STRUCT)
+        tab(c, "OVERHEAD", "#78DCFF")
+        c.text("QUIET", 4, 11, font = "8x12", color = "gray")
+        c.text("NOTHING IN " + str(st["radius"]) + " MI", 4, 25, font = "4x5",
+               color = "midgray")
+        return
+
     p = st["planes"][0]
-    band = band_of(p["alt"])
-    col = "#FF2D2D" if emergency(p) else band[1]
+    col = hero_color(p)
     rail(c, col)
+    tab(c, "OVERHEAD", col)
 
-    tab(c, "SKY", col)
+    # --- who it is, left column
     head = p["call"] if p["call"] != "" else p["reg"]
-    c.text(clip(c, head, "4x5", 70), 30, 2, font = "4x5", color = "white")
-    c.text(str(len(st["planes"])) + " IN RANGE", 190, 2, font = "4x5",
-           color = "gray", align = "right")
-
-    # The aircraft, large, at its true bearing.
-    plane_glyph(c, 22, 18, p, col, 1)
-
+    if head == "":
+        head = p["hex"] if p["hex"] != "" else "UNKNOWN"
+    hf = fit(c, head, ["8x12", "6x8", "5x7"], 62)
+    c.text(hf[1], 4, 9 if hf[0] == "8x12" else 11, font = hf[0], color = INK)
     if emergency(p):
-        c.text("SQUAWK " + p["squawk"], 44, 8, font = "5x7", color = "#FF2D2D")
-        c.text("EMERGENCY", 44, 18, font = "6x8", color = "#FF2D2D")
-        return
-
-    # Type and registration, then the numbers that matter.
-    tline = p["type"]
-    if p["reg"] != "" and p["reg"] != head:
-        tline = tline + "  " + p["reg"]
-    c.text(clip(c, tline, "4x5", 60), 44, 9, font = "4x5", color = "gray")
-
-    af = fit(c, alt_text(p), ["8x12", "6x8"], 62)
-    c.text(af[1], 44, 16, font = af[0], color = col)
-
-    rw = rate_word(p["rate"])
-    if not p["ground"]:
-        c.trend_arrow(44, 27, 1 if p["rate"] > 300 else (-1 if p["rate"] < -300 else 0),
-                      color = rw[1])
-        c.text(rw[0], 52, 27, font = "4x5", color = rw[1])
-
-    c.vline(112, 8, 21, STRUCT)
-    r = route_for(p["call"])
-    if r != None:
-        c.text(r[0], 118, 9, font = "6x8", color = "white")
-        c.text(">", 118 + c.text_width(r[0], "6x8") + 3, 10, font = "5x7",
-               color = "gray")
-        c.text(r[1], 190, 9, font = "6x8", color = "white", align = "right")
-        if r[2] != "":
-            c.text(clip(c, r[2], "4x5", 72), 118, 20, font = "4x5", color = "gray")
+        c.text("SQUAWK " + p["squawk"], 4, 24, font = "4x5", color = ALARM)
     else:
-        c.text("NO ROUTE FILED", 118, 10, font = "4x5", color = "midgray")
-    c.text(str(kt_to_mph(p["gs"])) + " MPH", 118, 27, font = "4x5", color = "gray")
+        r = route_for(p["call"])
+        if r != None:
+            # Origin, arrow and destination are packed tight on purpose: the
+            # distance is right-aligned against the divider and a three-letter
+            # IATA pair only just clears it.
+            o = clip(c, r[0], "4x5", 16)
+            c.text(o, 4, 24, font = "4x5", color = INK)
+            ax = 4 + c.text_width(o, "4x5") + 2
+            c.sprite(ARROW, ax, 24, color = col)
+            c.text(clip(c, r[1], "4x5", 16), ax + 5, 24, font = "4x5",
+                   color = INK)
+        elif p["ground"]:
+            c.text("ON GROUND", 4, 24, font = "4x5", color = "gray")
+        elif p["reg"] != "" and p["reg"] != head:
+            c.text(clip(c, p["reg"], "4x5", 36), 4, 24, font = "4x5",
+                   color = "gray")
     if p["dst"] > 0:
-        c.text(str(p["dst"] // 10) + "." + str(p["dst"] % 10) + " MI", 190, 27,
-               font = "4x5", color = "gray", align = "right")
+        c.text(miles(p["dst"]) + "MI", 66, 24, font = "4x5", color = DIM,
+               align = "right")
 
-# ------------------------------------------------------------ page 2: sky
-def sky(c, ctx):
+    # --- the sky itself
+    if p["type"] != "":
+        c.text(clip(c, p["type"], "4x5", 30), SKY_L, 1, font = "4x5",
+               color = DIM)
+    if p["gs"] > 0:
+        c.text(str(kt_to_mph(p["gs"])) + "MPH", SKY_R, 1, font = "4x5",
+               color = DIM, align = "right")
+
+    my = alt_y(p["alt"], p["ground"])
+    draw_trail(c, 118, my, p, col)
+    plane_glyph(c, 118, my, p, col, 1.0)
+
+    # --- the tape: the same axis, quantified. The column fills from the ground
+    # up to the aircraft, so height is a quantity you can see the size of and
+    # not only a position; the two faint rules are 10,000 and 30,000 feet.
+    tc = ALARM if emergency(p) else trend_color(p)
+    c.rect(c.width - 4, 0, c.width - 1, 31, fill = "#22242C")
+    c.rect(c.width - 4, my, c.width - 1, 31, fill = color.dim(tc, 30))
+    for ft in [10000, 30000]:
+        ty = alt_y(ft, False)
+        c.rect(c.width - 4, ty, c.width - 1, ty, fill = "#474B58")
+    c.rect(c.width - 7, my - 1, c.width - 1, my + 1, fill = tc)
+    if not p["ground"]:
+        rate_chevrons(c, c.width - 12, my, p["rate"])
+    ay = my - 3
+    if ay < 9:
+        ay = 9
+    if ay > 19:
+        ay = 19
+    c.text(alt_short(p), SKY_R, ay, font = "4x7",
+           color = "gray" if p["ground"] else INK, align = "right")
+
+# ------------------------------------------------------------- page 2: radar
+# A north-up scope. Every aircraft is plotted at its TRUE relative bearing and
+# distance rather than spread evenly for looks: one degree of latitude is 60
+# nautical miles and one of longitude is 60*cos(lat), so the offset vector
+# plots directly and the only trigonometry needed is a single cosine.
+def radar(c, ctx):
     c.fill("black")
     st = read_sky(ctx)
-    if fail(c, st):
-        tab(c, "TRAFFIC", "#78DCFF")
+    if fail(c, st, "RADAR"):
         return
-    rail(c, band_of(st["planes"][0]["alt"])[1])
-    tab(c, "TRAFFIC", "#78DCFF")
-    c.text(clip(c, st["place"], "4x5", 60), 46, 2, font = "4x5", color = "gray")
-    c.text(str(len(st["planes"])) + " WITHIN " + str(st["radius"]) + "MI", 190, 2,
-           font = "4x5", color = "gray", align = "right")
+    hot = st["state"] == "ok" and emergency(st["planes"][0])
+    accent = ALARM if hot else "#78DCFF"
+    rail(c, accent)
+    tab(c, "RADAR", accent)
 
-    # Ground line and the horizon, so height on the panel reads as height.
-    c.hline(2, 31, 188, "#1A1A22")
-    for x in range(2, 190, 6):
-        c.pixel(x, SKY_TOP - 1, "#1A1A22")
+    n = len(st["planes"])
+    c.text(str(n), 4, 8, font = "8x12", color = INK if n > 0 else "gray")
+    c.text("ACFT", 4, 21, font = "4x5", color = DIM)
+    # "IN 20MI" is 34px and the scope starts at 34, so the range gets its own
+    # short line rather than sliding under the ring.
+    c.text(str(st["radius"]) + "MI", 4, 27, font = "4x5", color = "midgray")
 
-    # Five, not seven. A callsign is up to 29px at 4x5 and seven columns leave
-    # 22px each, so the labels ran into one another and read as one long word.
-    shown = st["planes"][:5]
-    n = len(shown)
-    step = 176 // n if n > 0 else 176
-    for i in range(n):
-        p = shown[i]
-        cx = 16 + i * step + step // 2 - 8
-        cy = alt_y(p)
-        # Labels share one baseline so they line up instead of stepping with
-        # the aircraft; the aircraft are clamped to leave that row clear.
-        if cy < 9:
-            cy = 9
-        if cy > 20:
-            cy = 20
-        col = "#FF2D2D" if emergency(p) else band_of(p["alt"])[1]
-        plane_glyph(c, cx, cy, p, col, 1)
-        lab = p["call"] if p["call"] != "" else p["reg"]
-        # The callsign carries the altitude band as its colour, rather than a
-        # second row of digits underneath: there is only one label row of
-        # headroom under the aircraft, and the band palette already says how
-        # high without being read.
-        c.text(clip(c, lab, "4x5", step - 3), cx, 26, font = "4x5",
-               color = col, align = "center")
+    cx, cy, rr = 48, 17, 14
+    c.circle(cx, cy, rr, "#383B46")
+    for k in range(0, 360, 30):
+        a = k * DEG
+        c.pixel(int(cx + math.sin(a) * 7.5), int(cy - math.cos(a) * 7.5),
+                "#2A2D36")
+    c.pixel(cx, cy - rr - 1, "gray")
+    c.line(cx - 1, cy, cx + 1, cy, accent)
+    c.line(cx, cy - 1, cx, cy + 1, accent)
+    c.vline(66, 3, 26, "#2A2D36")
+
+    if st["state"] == "empty":
+        c.text("QUIET SKIES", 72, 10, font = "5x7", color = "gray")
+        c.text("NOTHING OVERHEAD RIGHT NOW", 72, 21, font = "4x5",
+               color = "midgray")
+        return
+
+    # cos(lat) to two terms. At the latitudes this app sees, the error against
+    # a real cosine is well under one pixel at scope scale.
+    la = st["lat"] * DEG
+    coslat = 1.0 - la * la / 2.0
+    for i in range(len(st["planes"])):
+        if i > 15:
+            break
+        q = st["planes"][i]
+        if q["lat"] == None or q["lon"] == None:
+            continue
+        dy = (q["lat"] - st["lat"]) * 60.0
+        dx = (q["lon"] - st["lon"]) * 60.0 * coslat
+        bx = cx + int(dx / st["rad_nm"] * rr)
+        by = cy - int(dy / st["rad_nm"] * rr)
+        if bx < cx - rr or bx > cx + rr or by < cy - rr or by > cy + rr:
+            continue
+        bc = hero_color(q)
+        c.rect(bx, by, bx + 1, by + 1, fill = bc)
+        if i == 0:
+            # The one the other page is about, ticked so the two pages agree.
+            c.pixel(bx - 3, by, bc)
+            c.pixel(bx + 4, by, bc)
+            c.pixel(bx, by - 3, bc)
+            c.pixel(bx, by + 4, bc)
+
+    # The three most interesting after the hero get a row each. Anything
+    # further out stays a blip on the scope, which is all it deserves.
+    if n == 1:
+        c.text("NO OTHER TRAFFIC", 72, 15, font = "4x5", color = "midgray")
+        return
+    for i in range(1, 4):
+        if i >= n:
+            break
+        q = st["planes"][i]
+        y = 2 + (i - 1) * 10
+        qc = hero_color(q)
+        plane_glyph(c, 74, y + 3, q, qc, 0.42)
+        lab = q["call"] if q["call"] != "" else q["reg"]
+        if lab == "":
+            lab = q["hex"] if q["hex"] != "" else "UNKNOWN"
+        c.text(clip(c, lab, "4x7", 46), 84, y, font = "4x7", color = INK)
+        c.text(alt_short(q), 152, y, font = "4x7", color = qc, align = "right")
+        c.text(miles(q["dst"]) + "MI", c.width - 3, y, font = "4x7",
+               color = DIM, align = "right")

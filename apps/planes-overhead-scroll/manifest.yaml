@@ -11,7 +11,7 @@ width: 192
 height: 32
 refresh: 120
 
-pages: [overhead, sky]
+pages: [overhead, radar]
 
 inputs:
   - key: zip
