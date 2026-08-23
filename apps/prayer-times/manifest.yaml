@@ -1,0 +1,28 @@
+gdn: 1
+id: prayer-times
+version: 0.1.0
+name: Prayer Times
+author: glance-led-dev
+description: The five daily prayers for your city and how long until the next one, with the Hijri date. Free, no API key.
+category: Lifestyle
+entry: app.star
+
+width: 192
+height: 32
+refresh: 300
+
+pages: [nextup, today]
+
+inputs:
+  - key: city
+    type: string
+    app_input_type: free-text
+    label: City
+    default: "London"
+    help: Your city. The countdown assumes the panel is in the city it is showing.
+  - key: country
+    type: string
+    app_input_type: free-text
+    label: Country
+    default: "UK"
+    help: Two-letter country code — UK, US, AE, MY, ID, TR.
