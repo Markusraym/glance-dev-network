@@ -1,0 +1,22 @@
+gdn: 1
+id: next-holiday
+version: 0.1.0
+name: Next Holiday
+author: glance-led-dev
+description: The next public holiday in your country and how long until it, plus the four after that. Over 100 countries, no API key.
+category: Lifestyle
+entry: app.star
+
+width: 192
+height: 32
+refresh: 3600
+
+pages: [holiday, ahead]
+
+inputs:
+  - key: country
+    type: string
+    app_input_type: free-text
+    label: Country
+    default: "US"
+    help: Two-letter country code — US, GB, DE, FR, JP, AU, CA, IN, BR.
