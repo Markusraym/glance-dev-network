@@ -1,0 +1,22 @@
+gdn: 1
+id: status-board
+version: 0.1.0
+name: Status Board
+author: glance-led-dev
+description: Is it me, or is it them. Live up/down for six services you depend on, straight from their own status pages. No API key.
+category: Developer
+entry: app.star
+
+width: 192
+height: 32
+refresh: 300
+
+pages: [status, issues]
+
+inputs:
+  - key: services
+    type: string
+    app_input_type: free-text
+    label: Services
+    default: "github,cloudflare,openai,npm,vercel,figma"
+    help: "Up to six, comma separated. Choose from: github, cloudflare, openai, npm, discord, dropbox, twilio, atlassian, digitalocean, vercel, netlify, datadog, figma, hubspot."
