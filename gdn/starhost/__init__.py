@@ -19,11 +19,12 @@ try:
 except ImportError:  # non-POSIX (e.g. Windows dev) — the limits become a no-op
     resource = None
 
-from .executor import StarError, app_page_count, esp_endpoint, run_star_app
+from .executor import (StarError, app_help_url, app_meta, app_page_count,
+                        esp_endpoint, run_star_app)
 from .sandbox_run import MARKER
 
 __all__ = ["run_star_app", "run_star_app_sandboxed", "app_page_count",
-           "esp_endpoint", "StarError", "StarTimeout"]
+           "esp_endpoint", "app_help_url", "app_meta", "StarError", "StarTimeout"]
 
 
 class StarTimeout(StarError):
