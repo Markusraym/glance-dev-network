@@ -73,11 +73,62 @@ inputs:
   - key: timezone
     type: choice
     app_input_type: dropdown
-    label: Timezone
-    help: Fixed offset from UTC. Adjust manually when daylight saving time changes.
-    default: UTC-05
-    choices: [UTC-12, UTC-11, UTC-10, UTC-09, UTC-08, UTC-07, UTC-06, UTC-05, UTC-04, UTC-03, UTC-02, UTC-01, UTC+00, UTC+01, UTC+02, UTC+03, UTC+04, UTC+05, UTC+06, UTC+07, UTC+08, UTC+09, UTC+10, UTC+11, UTC+12, UTC+13, UTC+14]
-
+    label: Time zone
+    default: "America/New_York"
+    help: Pick the city nearest you. Daylight saving is applied automatically, so this never needs changing twice a year.
+    choices:
+      - "Pacific/Honolulu"
+      - "America/Anchorage"
+      - "America/Los_Angeles"
+      - "America/Phoenix"
+      - "America/Denver"
+      - "America/Chicago"
+      - "America/Mexico_City"
+      - "America/New_York"
+      - "America/Bogota"
+      - "America/Halifax"
+      - "America/Sao_Paulo"
+      - "America/Argentina/Buenos_Aires"
+      - "UTC"
+      - "Europe/Lisbon"
+      - "Europe/Dublin"
+      - "Europe/London"
+      - "Europe/Madrid"
+      - "Europe/Paris"
+      - "Europe/Amsterdam"
+      - "Europe/Berlin"
+      - "Europe/Rome"
+      - "Europe/Stockholm"
+      - "Europe/Warsaw"
+      - "Africa/Lagos"
+      - "Europe/Athens"
+      - "Europe/Helsinki"
+      - "Africa/Johannesburg"
+      - "Europe/Moscow"
+      - "Africa/Nairobi"
+      - "Asia/Dubai"
+      - "Asia/Karachi"
+      - "Asia/Kolkata"
+      - "Asia/Dhaka"
+      - "Asia/Bangkok"
+      - "Asia/Jakarta"
+      - "Asia/Shanghai"
+      - "Asia/Singapore"
+      - "Asia/Hong_Kong"
+      - "Australia/Perth"
+      - "Asia/Tokyo"
+      - "Asia/Seoul"
+      - "Australia/Adelaide"
+      - "Australia/Brisbane"
+      - "Australia/Sydney"
+      - "Australia/Melbourne"
+      - "Pacific/Auckland"
+      - "Atlantic/Reykjavik"
+      - "Europe/Kyiv"
+      - "Europe/Istanbul"
+      - "Africa/Cairo"
+      - "Asia/Jerusalem"
+      - "Asia/Manila"
   - key: lights
     type: choice
     app_input_type: dropdown
