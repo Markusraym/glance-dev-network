@@ -1,0 +1,14 @@
+gdn: 1
+id: oblique-strategies
+version: 0.1.0
+name: Oblique Strategies
+author: glance-led-dev
+description: One card a day from Brian Eno and Peter Schmidt's 1975 deck — a single sentence meant to break a creative deadlock. No network, no settings.
+category: Lifestyle
+entry: app.star
+
+width: 192
+height: 32
+refresh: 900
+
+pages: [strategy]
