@@ -1,8 +1,8 @@
-id: tempest-weather
-name: Tempest Weather
+id: tempest-weather-scroll
+name: "Tempest Weather (Scroll)"
 author: cfdmb
 description: Live conditions from your own WeatherFlow Tempest station.
-width: 128
+width: 192
 height: 32
 refresh: 60
 pages:
