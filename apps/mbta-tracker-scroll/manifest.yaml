@@ -1,7 +1,7 @@
 gdn: 1
 id: mbta-tracker-scroll
 version: 0.1.0
-name: "MBTA Tracker Scroll"
+name: "MBTA Tracker (Boston, Scroll)"
 author: "gabetrainor"
 description: Live upcoming-train countdown board for any MBTA subway or commuter rail station.
 category: Transportation

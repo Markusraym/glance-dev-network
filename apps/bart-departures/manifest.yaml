@@ -1,9 +1,9 @@
 gdn: 1
 id: bart-departures
 version: 0.1.0
-name: BART Departures
+name: "BART Departures (Bay Area)"
 author: glance-led-dev
-description: "Real-time BART trains leaving your station, by line and minutes."
+description: "Real-time BART trains leaving your station in the San Francisco Bay Area, by line and minutes."
 category: Transportation
 entry: app.star
 
