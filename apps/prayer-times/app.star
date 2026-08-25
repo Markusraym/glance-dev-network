@@ -261,6 +261,36 @@ def ago(mins):
 # only way anybody actually uses this. The help text says so.
 
 ALADHAN = "https://api.aladhan.com/v1/timingsByCity"
+NOW_URL = "https://api.aladhan.com/v1/currentTime"
+
+# Name -> aladhan's method id. The convention is not cosmetic: Fajr and Isha
+# angles differ by several degrees between them, which moves those two prayers
+# by real minutes. Shipping one hardcoded method to the whole world was wrong.
+METHODS = {
+    "Muslim World League": 3,
+    "Islamic Society of North America (ISNA)": 2,
+    "Umm Al-Qura University, Makkah": 4,
+    "Egyptian General Authority of Survey": 5,
+    "University of Islamic Sciences, Karachi": 1,
+    "Shia Ithna-Ashari, Leva Institute, Qum": 0,
+    "Institute of Geophysics, University of Tehran": 7,
+    "Gulf Region": 8,
+    "Kuwait": 9,
+    "Qatar": 10,
+    "Majlis Ugama Islam Singapura, Singapore": 11,
+    "Union Organization Islamic de France": 12,
+    "Diyanet Isleri Baskanligi, Turkey": 13,
+    "Spiritual Administration of Muslims of Russia": 14,
+    "Moonsighting Committee Worldwide": 15,
+    "Dubai": 16,
+    "Jabatan Kemajuan Islam Malaysia (JAKIM)": 17,
+    "Tunisia": 18,
+    "Algeria": 19,
+    "Kementerian Agama Republik Indonesia": 20,
+    "Morocco": 21,
+    "Comunidade Islamica de Lisboa": 22,
+    "Ministry of Awqaf, Jordan": 23
+}
 
 # The five obligatory prayers, in the order they fall. Sunrise and the two
 # thirds of the night come back in the same payload and are deliberately not
@@ -303,11 +333,22 @@ def gap_words(mins):
         return str(mins) + "M"
     return str(mins // 60) + "H " + fmt.pad(mins % 60, 2) + "M"
 
+def split_city(choice):
+    """"Kuala Lumpur, Malaysia" -> ["Kuala Lumpur", "Malaysia"]. Split on the
+    LAST comma, because a city name can contain one and a country rarely does."""
+    t = str(choice).strip()
+    i = t.rfind(", ")
+    if i < 0:
+        return [t, ""]
+    return [t[:i].strip(), t[i + 2:].strip()]
+
 def read_prayer(ctx):
-    city = str(ctx.inputs.get("city", "")).strip()
-    country = str(ctx.inputs.get("country", "")).strip()
+    parts = split_city(ctx.inputs.get("city", ""))
+    city, country = parts[0], parts[1]
+    mname = str(ctx.inputs.get("method", "")).strip()
+    method = METHODS[mname] if mname in METHODS else 3
     st = {"state": "ok", "city": city.upper(), "times": [], "next": -1,
-          "hijri": "", "now": ctx.now.hour * 60 + ctx.now.minute}
+          "hijri": "", "now": ctx.now.hour * 60 + ctx.now.minute, "local": False}
     if city == "" or country == "":
         st["state"] = "setup"
         return st
@@ -318,7 +359,7 @@ def read_prayer(ctx):
     # actually showing instead of whatever the server thinks today is.
     day = (fmt.pad(ctx.now.day, 2) + "-" + fmt.pad(ctx.now.month, 2) + "-" +
            str(ctx.now.year))
-    url = (ALADHAN + "/" + day + "?method=2&city=" +
+    url = (ALADHAN + "/" + day + "?method=" + str(method) + "&city=" +
            city.replace(" ", "%20") + "&country=" +
            country.replace(" ", "%20"))
     r = http.get(url, ttl_seconds = 3600)
@@ -336,6 +377,20 @@ def read_prayer(ctx):
     tim = get(d, "timings", {})
     for p in PRAYERS:
         st["times"].append([p[0], hhmm(get(tim, p[1], "")), p[2]])
+
+    # The countdown used to assume the panel stood in the city it was showing.
+    # Now that the city is picked from a list it is far more likely to be
+    # somewhere else, so the city's own wall clock is asked for directly --
+    # which also covers the zones no static rule can express, like Morocco
+    # stepping back an hour for Ramadan.
+    tz = str(dig(d, ["meta", "timezone"], "")).strip()
+    if tz != "":
+        nr = http.get(NOW_URL + "?zone=" + tz, ttl_seconds = 120)
+        if nr["status_code"] == 200 and nr["json"] != None:
+            hm = hhmm(dig(nr["json"], ["data"], ""))
+            if hm >= 0:
+                st["now"] = hm
+                st["local"] = True
 
     hn = num(dig(d, ["date", "hijri", "month", "number"], 0), 0)
     hd = str(dig(d, ["date", "hijri", "day"], "")).strip()
