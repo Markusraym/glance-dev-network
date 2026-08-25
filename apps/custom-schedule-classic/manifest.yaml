@@ -1,9 +1,9 @@
 gdn: 1
 id: custom-schedule-classic
 version: 0.1.0
-name: "Custom Schedule Classic"
+name: "Prout School Sports (Classic)"
 author: "gabetrainor"
-description: Prout's upcoming-game schedule (logos, team codes, date/time), sized for a single 64x32 panel.
+description: Upcoming soccer and volleyball games for The Prout School in Wakefield, Rhode Island - opponent logos, team codes and kickoff, sized for a single 64x32 panel.
 category: Sports
 entry: app.star
 
