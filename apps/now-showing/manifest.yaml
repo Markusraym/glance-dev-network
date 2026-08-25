@@ -60,6 +60,7 @@ inputs:
     help: Leave season and episode both blank to show overall series info instead of one episode.
 
   - key: omdbkey
+    required: true
     type: string
     app_input_type: api-key
     label: OMDb API key

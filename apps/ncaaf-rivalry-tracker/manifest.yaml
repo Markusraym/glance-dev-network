@@ -12,6 +12,7 @@ refresh: 3600
 pages: [main]
 inputs:
   - key: apikey
+    required: true
     type: string
     app_input_type: api-key
     label: CFBD API Key

@@ -22,6 +22,7 @@ inputs:
     choices: [Fahrenheit (English / Imperial), Celsius (Metric)]
     default: Fahrenheit (English / Imperial)
   - key: apikey
+    required: true
     label: Weather Underground API Key
     type: api-key
     app_input_type: api-key
