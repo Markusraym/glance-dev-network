@@ -22,6 +22,7 @@ inputs:
     default: ""
     help: A US zip code - used to look up your latitude/longitude.
   - key: apikey
+    required: true
     type: string
     app_input_type: api-key
     label: N2YO API key

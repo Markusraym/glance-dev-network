@@ -13,6 +13,7 @@ refresh: 720
 pages: [main]
 inputs:
   - key: apikey
+    required: true
     app_input_type: api-key
     type: string
     label: Twelve Data API key

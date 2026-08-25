@@ -99,7 +99,8 @@ def _resolve_inputs(manifest: dict, raw: dict) -> dict:
     resolved = {}
     for spec in (manifest.get("inputs") or []):
         i = Input(spec["key"], spec.get("type", "string"), spec.get("label", spec["key"]),
-                  spec.get("default"), spec.get("choices"), spec.get("help", ""))
+                  spec.get("default"), spec.get("choices"), spec.get("help", ""),
+                  spec.get("app_input_type"), bool(spec.get("required", False)))
         resolved[i.key] = i.coerce(raw.get(i.key))
     for k, v in raw.items():
         resolved.setdefault(k, v)
@@ -346,6 +347,19 @@ def app_meta(app_dir) -> dict:
         "width": int(m.get("width", 192)),
         "height": int(m.get("height", 32)),
         "help_url": app_help_url(app_dir),
+        "inputs": [
+            {
+                "key": str(i.get("key", "")),
+                "label": str(i.get("label", i.get("key", ""))),
+                "type": str(i.get("type", "string")),
+                "app_input_type": str(i.get("app_input_type", "") or ""),
+                "required": bool(i.get("required", False)),
+                "default": i.get("default"),
+                "choices": i.get("choices") or [],
+                "help": str(i.get("help", "") or ""),
+            }
+            for i in (m.get("inputs") or []) if isinstance(i, dict)
+        ],
     }
 
 

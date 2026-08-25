@@ -12,6 +12,7 @@ refresh: 900
 pages: [now, health]
 inputs:
   - key: apikey
+    required: true
     app_input_type: api-key
     type: string
     label: AirNow API key
