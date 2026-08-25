@@ -1,0 +1,11 @@
+gdn: 1
+id: ironclad
+name: Ironclad
+description: Crisp full Ironclad image.
+category: Fun
+width: 64
+height: 32
+refresh: 3600
+pages: [main]
+assets:
+  - ironclad_crisp_full.png
