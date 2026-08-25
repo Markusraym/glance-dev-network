@@ -1,6 +1,6 @@
 gdn: 1
 id: cta-train-times
-name: CTA Train Times
+name: "CTA Train Times (Chicago)"
 author: Rob Patak
 description: Live Chicago 'L' arrival times for any CTA station.
 category: Transportation

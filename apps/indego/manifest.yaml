@@ -1,7 +1,7 @@
 gdn: 1
 id: indego
 version: 0.1.0
-name: Indego
+name: "Indego Bikes (Philadelphia)"
 author: AJ
 description: Bikes and docks free right now at a Philadelphia Indego station, from the public GBFS feed.
 category: Transportation
