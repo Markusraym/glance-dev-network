@@ -62,6 +62,20 @@ Or skip the terminal and double-click the launcher for your system: `studio.bat`
   </tr>
 </table>
 
+For apps wider than 64, Studio's **Preview your app in action** card plays your
+app in the scroll sequence between two neighbor apps, on every panel size
+(Studio 192 · Pro 384 · Premier 640, and the V2 64 page-flip) — so you see it
+the way it will actually be seen.
+
+## Design guidelines
+
+How a good Glance app *looks* — safe zones per panel width, font roles, color
+semantics, pixel art, and the four screens every app needs — lives at
+**https://glance-led.dev/docs/design**. The same document ships in this repo as
+[`gdn/data/design_guidelines.md`](gdn/data/design_guidelines.md), and the MCP
+server hands it to AI assistants as `glance://reference/design`, so an
+AI-built app follows it too. Walk the pre-flight checklist before you submit.
+
 ## Make an app
 
 ```bash
@@ -92,4 +106,12 @@ it automatically; once it's merged it goes live. See
 ## Commands
 
 `gdn new` · `preview` · `studio` · `build` · `render --page N` · `validate` ·
-`translate` · `fonts` · `version`
+`translate` · `fonts` · `mcp` · `version`
+
+## Fonts
+
+`gdn fonts` lists the 40 bundled bitmap fonts (including the `10x15_outline`
+and `10x16_outline` faces, whose glyphs carry their own border for text on
+filled backgrounds). To add a font from a panel `bitmap_<name>.php` file, run
+`python tools/merge_php_fonts.py path/to/bitmap_<name>.php` — it appends new
+names to `gdn/data/fonts.json` and never overwrites a font that ships already.
