@@ -307,47 +307,39 @@ def bikes(c, ctx):
         # cost of a single row.
         c.hline(0, 7, c.width, "#0C2233")
 
-        # The right cluster is measured first so the left one can be given what
-        # is actually left. Every position below is derived, not guessed: a
-        # three-digit count is 51px at 16x20 and a fixed bolt position sat
-        # underneath it.
-        dock_w = c.text_width(dstr, "10x16")
-        dock_x = c.width - 4 - dock_w
-        ghost_x = dock_x - 4 - 17
+        # Three labelled figures. The original layout leaned on the glyphs
+        # alone -- a bike, a bolt, a dim bike -- on the theory that neither
+        # number needed a word next to it. In front of somebody who has not
+        # seen the app before, "4  2  103" is a puzzle, so each figure now says
+        # what it is. The bike keeps its place on the left as the app's mark.
+        c.sprite(BIKE, 3, 11, legend = BIKE_LEGEND)
 
-        # A dim bike is an empty space. Reusing the hero silhouette for the
-        # docks means one visual idea does both jobs, and neither number needs
-        # a word next to it.
-        c.sprite(BIKE_SMALL, ghost_x, 13,
-                 legend = {"B": "#33404A", "W": "#4A5A66", "T": GHOST})
-        c.text(dstr, dock_x, 12, font = "10x16",
-               color = SLATE if not returning else count_color(docks))
-
-        c.sprite(BIKE, 3, 10, legend = BIKE_LEGEND)
-
-        hero = "16x20"
-        # 6px for the bolt and its gap, plus room for the e-bike count.
-        if 34 + c.text_width(tstr, hero) + 12 + c.text_width(str(ebikes), "8x12") > ghost_x - 6:
-            hero = "10x16"
-        c.text(tstr, 34, 8 if hero == "16x20" else 10, font = hero,
-               color = SLATE if not renting else count_color(total))
-
-        bx = 34 + c.text_width(tstr, hero) + 7
+        cols = [
+            [36, "BIKES", tstr, SLATE if not renting else count_color(total)],
+            [92, "E-BIKES", str(ebikes), WHITE if ebikes > 0 else "#33404A"],
+            [146, "DOCKS", dstr, SLATE if not returning else count_color(docks)],
+        ]
+        for col in cols:
+            x = col[0]
+            c.text(col[1], x, 8, font = "4x5", color = "#5A6C7A")
+            # 10x16 rather than the old 16x20 hero: three digits of dock count
+            # at 16x20 is 51px, which left no room for a label above it and was
+            # what forced the numbers hard against the right edge.
+            c.text(col[2], x, 13, font = "10x16", color = col[3])
         if ebikes > 0:
-            c.sprite(BOLT, bx, 16, legend = {"Y": YELLOW})
-            c.text(str(ebikes), bx + 6, 14, font = "8x12", color = WHITE)
-        else:
-            # A dim bolt says "no e-bikes here" faster than the digit 0 does.
-            c.sprite(BOLT, bx, 16, legend = {"Y": "#33404A"})
+            c.sprite(BOLT, 92 + c.text_width(str(ebikes), "10x16") + 3, 15,
+                     legend = {"Y": YELLOW})
 
-        meter(c, 2, c.width - 3, total, ebikes, docks)
+        meter(c, 2, c.width - 9, total, ebikes, docks)
 
         # A station can report ordinary counts and still refuse the trip, so
         # the badge carries the alarm and the dimmed number says it is moot.
         if not renting:
-            c.sprite(NO_ENTRY, 20, 13, legend = {"R": "#E01A1A", "W": WHITE})
+            c.sprite(NO_ENTRY, 36 + c.text_width(tstr, "10x16") + 3, 15,
+                     legend = {"R": "#E01A1A", "W": WHITE})
         if not returning:
-            c.sprite(NO_ENTRY, ghost_x + 4, 15,
+            # Sits over the DOCKS column, which is where the refusal applies.
+            c.sprite(NO_ENTRY, 146 + c.text_width(dstr, "10x16") + 3, 15,
                      legend = {"R": "#E01A1A", "W": WHITE})
     else:
         # 64px has room for one bike, so the blue one goes to the bikes count

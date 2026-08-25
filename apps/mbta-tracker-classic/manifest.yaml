@@ -1,7 +1,7 @@
 gdn: 1
 id: mbta-tracker-classic
 version: 0.1.0
-name: "MBTA Tracker Classic"
+name: "MBTA Tracker (Boston, Classic)"
 author: "gabetrainor"
 description: Live upcoming-train countdown board for any MBTA subway or commuter rail station, sized for a single 64x32 panel.
 category: Transportation
