@@ -15,6 +15,7 @@ inputs:
     default: "yoursite.onrender.com"
     help: "Your Nightscout site domain, no https:// (e.g. yoursite.onrender.com)"
   - key: token
+    required: true
     type: string
     app_input_type: api-key
     label: Nightscout Access Token

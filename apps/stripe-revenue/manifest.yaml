@@ -15,6 +15,7 @@ pages: [balance]
 
 inputs:
   - key: apikey
+    required: true
     type: string
     app_input_type: api-key
     label: Stripe restricted key

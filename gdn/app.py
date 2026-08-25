@@ -34,6 +34,12 @@ class Input:
     # falls back to `type` (choice->dropdown, number->number, else free-text).
     # One of: free-text | dropdown | selection | checkbox | date | date-past | color | api-key
     app_input_type: Optional[str] = None
+    # Whether a viewer MUST fill this in. Optional is the default, because most
+    # settings have a usable default and a blank one should never break an app.
+    # A required input is one the app genuinely cannot run without -- an API
+    # key, a Nightscout URL -- and the client should refuse to save it empty
+    # rather than letting the panel fail later with an unexplained error.
+    required: bool = False
 
     def coerce(self, raw):
         if raw is None or raw == "":
