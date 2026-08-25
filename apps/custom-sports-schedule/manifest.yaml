@@ -1,9 +1,9 @@
 gdn: 1
 id: custom-sports-schedule
 version: 0.1.0
-name: "Custom Sports Schedule"
+name: "Prout School Sports"
 author: "gabetrainor"
-description: Prout's upcoming-game schedule (logo, teams, date/time, sport) in the style of the major-league game-card apps.
+description: Upcoming soccer and volleyball games for The Prout School in Wakefield, Rhode Island - opponent logos, date and kickoff, in the style of the major-league game-card apps.
 category: Sports
 entry: app.star
 
