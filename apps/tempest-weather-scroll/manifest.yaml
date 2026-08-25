@@ -16,6 +16,7 @@ pages:
   - forecast
 inputs:
   - key: token
+    required: true
     type: string
     app_input_type: api-key
     label: Tempest API token (tempestwx.com > Settings > Data Authorizations)

@@ -121,6 +121,30 @@ def check_app(app_dir) -> tuple:
                        f"(no '_' or '-'): those are render-descriptor delimiters, so a value under "
                        f"this key never reaches the app. Rename it, e.g. `{safe}`.")
                 (errors if ait == "api-key" else warns).append(msg)
+            # An input a viewer can legitimately leave blank has to be READ
+            # defensively. coerce() hands a blank straight back as the manifest
+            # default, so an input whose default is empty reaches the app as ""
+            # -- and ctx.inputs["key"], or a one-argument .get(), then produces
+            # a blank the app was not expecting. That is how "if one is blank it
+            # doesn't work" happens.
+            req = bool(i.get("required", False)) if isinstance(i, dict) else False
+            dflt_raw = i.get("default") if isinstance(i, dict) else None
+            blank_default = dflt_raw is None or str(dflt_raw).strip() == ""
+            if k and not req and blank_default:
+                code = _code_only(src)
+                subscript = re.search(r"""ctx\.inputs\[\s*['"]""" + re.escape(k) + r"""['"]\s*\]""", code)
+                bare_get = re.search(r"""ctx\.inputs\.get\(\s*['"]""" + re.escape(k) + r"""['"]\s*\)""", code)
+                if subscript or bare_get:
+                    how = "ctx.inputs[...]" if subscript else "a one-argument .get()"
+                    warns.append(
+                        f"input `{k}` is optional and defaults to blank, but the app reads it with "
+                        f"{how}. A viewer who leaves it empty gets an empty string. Read it as "
+                        f'ctx.inputs.get("{k}", <fallback>) and handle "" explicitly, or mark the '
+                        f"input `required: true` so the client refuses to save it blank.")
+            if req and not blank_default:
+                warns.append(f"input `{k}` is marked `required: true` but has a non-empty default "
+                             f"({dflt_raw!r}), so it can never actually be blank. Drop one or the other.")
+
             if k and not re.search(r"""['"]""" + re.escape(k) + r"""['"]""", src):
                 errors.append(f"setting `{k}` is declared but never used in app.star "
                               f'(read it with ctx.inputs.get("{k}"), or remove it from the manifest)')

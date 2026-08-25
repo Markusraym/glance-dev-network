@@ -385,11 +385,50 @@ def _station_by_id(sid):
         "dist": 0.0,
     }
 
+def _station_id(choice):
+    """Pull the NOAA id out of a dropdown entry.
+
+    The list shows "CA - San Diego (9410170)" because a bare 9410170 means
+    nothing to anybody. Anything without a numeric id in trailing brackets --
+    including the "Nearest to my zip code" entry, and any leftover blank from
+    before this was a dropdown -- means fall back to the zip lookup.
+
+    It used to be free text, which is why people pasted station ids off the
+    NOAA map and got NOT FOUND: most of what that map shows is a current meter
+    or a met station, and only about 237 gauges actually publish tide
+    predictions. Those 237 are the whole of this list, so the failure cannot
+    happen any more."""
+    t = str(choice).strip()
+    if t == "":
+        return ""
+    # A bare id still works. This was a free-text field until now, so anybody
+    # who already had 8467150 saved keeps the station they chose instead of
+    # being quietly moved to whatever is nearest their zip code.
+    allnum = True
+    for ch in t.elems():
+        if ch < "0" or ch > "9":
+            allnum = False
+            break
+    if allnum:
+        return t
+    if not t.endswith(")"):
+        return ""
+    i = t.rfind("(")
+    if i < 0:
+        return ""
+    inner = t[i + 1:len(t) - 1].strip()
+    if inner == "":
+        return ""
+    for ch in inner.elems():
+        if ch < "0" or ch > "9":
+            return ""
+    return inner
+
 # Returns {"ok": True, ...} or {"ok": False, "title":..., "sub":...}
 
 def fetch(ctx):
     zip = _s(ctx, "zip", "")
-    sid = _s(ctx, "station", "")
+    sid = _station_id(_s(ctx, "station", ""))
 
     now = _now_unix(ctx)
     begin = _ymd(now, 0)
@@ -581,7 +620,7 @@ def tide(c, ctx):
 
     # Header: [station] [RISE/FALL ft] ........ [XX MI or station id]
     # Measure right→left so a long station name never collides with status.
-    sid_in = _s(ctx, "station", "")
+    sid_in = _station_id(_s(ctx, "station", ""))
     if sid_in:
         dist = d["station_id"]
     elif d["dist"] > 0:

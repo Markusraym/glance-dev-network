@@ -23,6 +23,7 @@ inputs:
     default: "https://YOUR-WORKER.workers.dev/api/races"
 
   - key: apptoken
+    required: true
     type: string
     app_input_type: api-key
     label: Worker App Token

@@ -12,6 +12,7 @@ refresh: 300
 pages: [station, alerts]
 inputs:
   - key: apikey
+    required: true
     app_input_type: api-key
     type: string
     label: Weather Underground API key
