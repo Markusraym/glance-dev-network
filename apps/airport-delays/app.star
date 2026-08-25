@@ -352,6 +352,24 @@ def reason_words(s):
         out = p if out == "" else out + " / " + p
     return out
 
+def trim_tail(t):
+    """Drop a dangling connective left behind by clipping.
+
+    "Disabled aircraft on the runway" cut to width lands on "DISABLED AIRCRAFT
+    ON THE", which reads like the panel gave up mid-sentence. Ending on
+    "DISABLED AIRCRAFT" says the same thing and looks deliberate."""
+    out = str(t).strip()
+    for _ in range(3):
+        cut = False
+        for w in ["THE", "ON", "A", "AN", "OF", "AND", "TO", "AT", "DUE", "FOR", "/"]:
+            tail = " " + w
+            if out.endswith(tail):
+                out = out[:len(out) - len(tail)].strip()
+                cut = True
+        if not cut:
+            return out
+    return out
+
 def read_faa(ctx):
     st = {"state": "ok", "rows": [], "updated": ""}
     r = http.get(FAA, ttl_seconds = 300)
@@ -421,7 +439,10 @@ def faa(c, ctx):
     c.text(str(n) + (" AIRPORT" if n == 1 else " AIRPORTS"), 188, 2,
            font = "4x5", color = top[1], align = "right")
 
-    # Four rows fill the panel exactly on a six-pixel pitch from y=9.
+    # Four rows on a six-pixel pitch from y=9. Everything is packed to the
+    # LEFT of the row rather than the reason being flung to the right margin:
+    # a code, a duration and a cause sitting apart with 90px of black between
+    # them read as three unrelated columns instead of one airport's story.
     for i in range(n):
         if i > 3:
             break
@@ -431,9 +452,9 @@ def faa(c, ctx):
         c.rect(4, y, 6, y + 4, fill = k[1])
         c.text(r[1], 10, y, font = "4x5", color = INK)
         if r[2] != "":
-            c.text(r[2], 50, y, font = "4x5", color = k[1], align = "right")
-        c.text(clip_words(c, r[3], "4x5", 132), 188, y, font = "4x5", color = DIM,
-               align = "right")
+            c.text(r[2], 54, y, font = "4x5", color = k[1], align = "right")
+        c.text(trim_tail(clip_words(c, r[3], "4x5", 128)), 60, y, font = "4x5",
+               color = DIM)
 
 # ------------------------------------------------------------- page 2: worst
 # The single worst airport, big enough to read from the other side of a
@@ -449,11 +470,20 @@ def worst(c, ctx):
     tab(c, "WORST", k[1])
     c.text(k[0], 188, 2, font = "4x5", color = k[1], align = "right")
 
-    c.text(r[1], 4, 10, font = "16x20", color = INK)
-    x = 4 + c.text_width(r[1], "16x20") + 8
+    # 16x20 is twenty rows tall, so the code alone occupies y=9..28 and there
+    # is no bottom row left under it. The detail goes BESIDE the code rather
+    # than below: putting a line at y=26 drew it straight through the letters.
+    c.text(r[1], 4, 9, font = "16x20", color = INK)
+    bx = 4 + c.text_width(r[1], "16x20") + 8
+
+    extra = r[4].strip()
+    if extra in ["MAX", "UNTIL", "REOPENS"]:
+        extra = ""
     if r[2] != "":
-        c.text(r[2], x, 11, font = "8x12", color = k[1])
-    if r[4] != "" and r[4] != "MAX " and r[4] != "UNTIL " and r[4] != "REOPENS ":
-        c.text(clip(c, r[4], "4x5", 188 - x), x, 25, font = "4x5", color = DIM)
-    c.text(clip(c, r[3], "4x5", 110), 188, 25, font = "4x5", color = INK,
-           align = "right")
+        c.text(r[2], bx, 9, font = "8x12", color = k[1])
+    if extra != "":
+        c.text(clip(c, extra, "4x5", 84), 188, 11, font = "4x5", color = DIM,
+               align = "right")
+    if r[3] != "":
+        c.text(trim_tail(clip_words(c, r[3], "4x5", 188 - bx)), bx, 23,
+               font = "4x5", color = INK)
