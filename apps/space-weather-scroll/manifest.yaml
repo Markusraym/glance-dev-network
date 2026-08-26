@@ -13,5 +13,5 @@ refresh: 900
 
 pages: [flux]
 
-assets:
-  - FLARE.png
+# No assets: the sun is baked into app.star as a sprite string, so it can be
+# recoloured per state and never needs scaling at render time.
