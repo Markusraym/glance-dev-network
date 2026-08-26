@@ -13,9 +13,6 @@ refresh: 900
 
 pages: [feels]
 
-assets:
-  - THERMO.png
-
 inputs:
   - key: zip
     type: string
