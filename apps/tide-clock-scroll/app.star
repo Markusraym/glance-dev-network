@@ -230,8 +230,12 @@ def tides(c, ctx):
                 bg = "#4EA8FF", font = "4x5")
         c.text("NEXT " + label, 30, 2, font = "4x5", color = "#5E82A0")
         c.text(when, 30, 8, font = "16x20", color = col)
-        c.text(arrow, c.width - 6, 4, font = "10x16", color = col,
-               align = "right")
+        # FALLING is 12px wider than RISING and the time is a fixed 84px from
+        # x=30, so the word has to be fitted to whatever is actually left --
+        # at 10x16 a falling tide printed straight through the clock.
+        awmax = (c.width - 6) - (30 + c.text_width(when, "16x20")) - 4
+        c.text_fit(arrow, c.width - 6, 4, ["10x16", "8x12", "6x8"],
+                   color = col, align = "right", maxw = awmax)
         c.text(str(int(ft * 10) / 10.0) + " FT", c.width - 6, 23, font = "6x8",
                color = "#8FC4E8", align = "right")
     else:
