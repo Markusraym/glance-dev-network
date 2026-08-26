@@ -1,7 +1,7 @@
 gdn: 1
 id: hurricane-tracker-scroll
 version: 0.1.0
-name: Hurricane Tracker (Scroll)
+name: Hurricane Tracker
 author: glance-led-dev
 description: Active Atlantic and Pacific tropical cyclones, with category, winds and position.
 category: Weather

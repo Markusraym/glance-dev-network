@@ -1,7 +1,7 @@
 gdn: 1
 id: visible-planets-scroll
 version: 0.1.0
-name: Visible Planets (Scroll)
+name: Visible Planets
 author: glance-led-dev
 description: Which planets are up tonight, drawn — rings, bands, red spot and all.
 category: Science

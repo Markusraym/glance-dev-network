@@ -1,7 +1,7 @@
 gdn: 1
 id: quake-nearby-scroll
 version: 0.1.0
-name: Quakes Near Me (Scroll)
+name: Quakes Near Me
 author: glance-led-dev
 description: The closest recent earthquake to you, and how far away it actually was.
 category: Science
