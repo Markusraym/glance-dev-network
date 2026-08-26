@@ -13,8 +13,8 @@ refresh: 3600
 
 pages: [tonight]
 
-assets:
-  - FROST.png
+# No assets: the identity art is baked into app.star as c.sprite string
+# art, which recolours per frost band instead of shipping one flat PNG.
 
 inputs:
   - key: zip
