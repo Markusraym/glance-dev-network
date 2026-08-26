@@ -21,6 +21,16 @@ assets:
   - SNOW.png
   - STORM.png
   - FOG.png
+  # Black silhouettes of the seven drawings above, derived from their own
+  # alpha channels. sprite_at() stamps one at each of the eight neighbouring
+  # offsets to give the art a 1px keyline against the sky.
+  - SUN_KEY.png
+  - CLOUD_KEY.png
+  - PARTLY_KEY.png
+  - RAIN_KEY.png
+  - SNOW_KEY.png
+  - STORM_KEY.png
+  - FOG_KEY.png
 
 inputs:
   - key: zip
