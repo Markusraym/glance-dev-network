@@ -94,7 +94,7 @@ def category(kt):
 
 
 def storms(c, ctx):
-    r = http.get("https://www.nhc.noaa.gov/CurrentStorms.json", ttl_seconds = 1800)
+    r = http.get("https://www.nhc.noaa.gov/CurrentStorms.json", ttl_seconds = 3600)
     if r["status_code"] != 200 or r["json"] == None:
         nodata(c, "NO NHC DATA", "NO CONNECTION")
         return

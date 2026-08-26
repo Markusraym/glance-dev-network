@@ -337,7 +337,7 @@ def read_tasks(ctx):
         return sort_tasks(base)
 
     r = http.get(API, headers = {"Authorization": "Bearer " + token},
-                 params = {"filter": "overdue | today"}, ttl_seconds = 300)
+                 params = {"filter": "overdue | today"}, ttl_seconds = 900)
     code = r["status_code"]
     if code == 401 or code == 403:
         base["state"] = "denied"

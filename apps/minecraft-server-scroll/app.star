@@ -316,7 +316,7 @@ def read_server(ctx):
     if host == "":
         st["state"] = "setup"
         return st
-    r = http.get(API + host, ttl_seconds = 120)
+    r = http.get(API + host, ttl_seconds = 600)
     if r["status_code"] != 200 or r["json"] == None:
         # mcsrvstat itself being unreachable is NOT the same as the server being
         # down, and saying "OFFLINE" for it would be a lie about someone's world.
