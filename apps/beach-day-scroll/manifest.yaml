@@ -13,9 +13,6 @@ refresh: 3600
 
 pages: [score]
 
-assets:
-  - UMBRELLA.png
-
 inputs:
   - key: zip
     type: string
