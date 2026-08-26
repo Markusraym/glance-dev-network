@@ -1,7 +1,7 @@
 gdn: 1
 id: year-progress-scroll
 version: 0.1.0
-name: Year Progress (Scroll)
+name: Year Progress
 author: glance-led-dev
 description: How much of the year, the month and the day are already gone — one page each.
 category: Time

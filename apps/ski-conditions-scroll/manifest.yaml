@@ -1,7 +1,7 @@
 gdn: 1
 id: ski-conditions-scroll
 version: 0.1.0
-name: Ski Conditions (Scroll)
+name: Ski Conditions
 author: glance-led-dev
 description: New snow, what is coming, and whether it is cold enough to hold.
 category: Weather

@@ -1,7 +1,7 @@
 gdn: 1
 id: wind-report-scroll
 version: 0.1.0
-name: Wind Report (Scroll)
+name: Wind Report
 author: glance-led-dev
 description: Wind speed, gusts and direction — for sailors, cyclists and anyone with a kite.
 category: Weather
