@@ -292,7 +292,7 @@ def read_metar(ctx):
     if ids == "":
         st["state"] = "setup"
         return st
-    r = http.get(AWC + ids, ttl_seconds = 600)
+    r = http.get(AWC + ids, ttl_seconds = 1800)
     if r["status_code"] != 200 or r["json"] == None:
         st["state"] = "offline"
         return st
