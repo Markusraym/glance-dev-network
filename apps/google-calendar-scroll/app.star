@@ -541,9 +541,18 @@ def tab(c, word, x = 4):
     edge. That is not a detail: the row it saves is what lets the two agenda
     cards fit under it without the second title running off the bottom."""
     wide = c.width >= 128
+    if wide:
+        # Standard pill: c.badge sizes the chip to the text's ink, so the
+        # glyphs get exactly 1px of pill above and below instead of the
+        # 2-over-1 the hand-drawn rect produced.
+        return x + c.badge(word, x, 0, color = "white", bg = BLUE,
+                           font = "4x5") + 1
+    # 64px keeps its hand-drawn chip: it is deliberately two rows shorter so
+    # the two agenda cards fit beneath it, and c.badge cannot go under 7 rows
+    # with a 5-row font. The 64 build ships from apps/google-calendar.
     w = c.text_width(word, "4x5")
-    c.round_rect(x, 0, x + w + 3, 7 if wide else 5, 2, fill = BLUE)
-    c.text(word, x + 2, 2 if wide else 1, font = "4x5", color = "white")
+    c.round_rect(x, 0, x + w + 3, 5, 2, fill = BLUE)
+    c.text(word, x + 2, 1, font = "4x5", color = "white")
     return x + w + 4
 
 def message(c, head, sub, head_color = "amber"):
@@ -712,6 +721,19 @@ G_RED = "#EA4335"
 G_YELLOW = "#FBBC05"
 G_GREEN = "#34A853"
 
+
+# The Google wordmark's own colour sequence: G blue, o red, o yellow,
+# g blue, l green, e red. Drawn a letter at a time at the 6x8 advance
+# (6px glyph + 1px letter space) so it lands exactly where c.text would
+# have put the whole string.
+GOOGLE_LETTER_COLORS = [G_BLUE, G_RED, G_YELLOW, G_BLUE, G_GREEN, G_RED]
+
+def google_wordmark(c, x, y):
+    word = "GOOGLE"
+    for i in range(len(word)):
+        c.text(word[i], x + i * 7, y, font = "6x8",
+               color = GOOGLE_LETTER_COLORS[i])
+
 def calendar_icon(c, x, y, accent):
     """A 22x22 calendar page, top-left at (x, y)."""
     c.rect(x + 2, y + 1, x + 3, y + 4, fill = "#9AA0A6")
@@ -746,10 +768,17 @@ def splash(c, ctx):
 
     if wide:
         calendar_icon(c, 6, 5, accent)
-        c.text(day_of_month(st["today"]), 17, 14, font = "5x7",
-               color = "#3C4043", align = "center")
-        c.text("GOOGLE", 38, 4, font = "6x8", color = "white")
-        c.text("CALENDAR", 38, 14, font = "6x8", color = accent)
+        # Date centred in the tile's white field: the body spans x 6..27 and
+        # the field below the header band is rows 15..26, so both axes are
+        # measured rather than eyeballed, and it holds for 1 or 31.
+        day = day_of_month(st["today"])
+        dw = c.text_width(day, "5x7")
+        c.text(day, 6 + (22 - dw) // 2, 17, font = "5x7", color = "black")
+        google_wordmark(c, 38, 4)
+        # CALENDAR is white: it is the app's name, not a status, so it stays
+        # constant while the tile's band and the event count carry the day-load
+        # signal (green clear, blue ordinary, yellow filling, red packed).
+        c.text("CALENDAR", 38, 14, font = "6x8", color = "white")
         c.text(date_label(st["today"]), 38, 25, font = "4x5", color = "gray")
         if st["state"] in ["setup", "offline", "badfeed"]:
             c.text("NOT SET UP", 188, 25, font = "4x5", color = "midgray",
