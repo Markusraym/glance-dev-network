@@ -314,7 +314,7 @@ BOLT = """
 
 def read_alerts(ctx):
     st = {"state": "ok", "total": 0, "extreme": 0, "fams": [], "states": []}
-    r = http.get(API, headers = UA, ttl_seconds = 300)
+    r = http.get(API, headers = UA, ttl_seconds = 900)
     if r["status_code"] != 200 or r["json"] == None:
         st["state"] = "offline"
         return st
