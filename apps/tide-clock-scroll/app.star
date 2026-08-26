@@ -219,12 +219,15 @@ def tides(c, ctx):
     when = str(nxt.get("t", ""))[11:16]
     ft = float(nxt.get("v", 0) or 0)
 
-    c.gradient_rect(0, 0, c.width - 1, c.height - 1, "#04101C", "#0B2A44",
-                    horizontal = False)
+    c.fill("#04101C")
     n = 24 if c.width >= 128 else 16
     c.image("TIDE.png", 2, c.height - n + 4, w = n, h = n)
 
     if c.width >= 128:
+        # TIDE tag at the top, centred over the pixel art below it.
+        bw = c.text_width("TIDE", "4x5") + 4
+        c.badge("TIDE", 2 + (n + 2 - bw) // 2, 1, color = "black",
+                bg = "#4EA8FF", font = "4x5")
         c.text("NEXT " + label, 30, 2, font = "4x5", color = "#5E82A0")
         c.text(when, 30, 8, font = "16x20", color = col)
         c.text(arrow, c.width - 6, 4, font = "10x16", color = col,
