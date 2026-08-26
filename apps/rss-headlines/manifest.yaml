@@ -13,9 +13,6 @@ refresh: 900
 
 pages: [one, two, three]
 
-assets:
-  - NEWS.png
-
 inputs:
   - key: url
     type: string
