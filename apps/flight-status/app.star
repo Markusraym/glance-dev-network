@@ -517,7 +517,7 @@ def read_flight(ctx):
         if rr["olat"] != None and rr["dlat"] != None:
             st["total"] = hav_nm(rr["olat"], rr["olon"], rr["dlat"], rr["dlon"])
 
-    a = http.get(ADSB_CS + st["call"], ttl_seconds = 60)
+    a = http.get(ADSB_CS + st["call"], ttl_seconds = 300)
     if a["status_code"] != 200 or a["json"] == None:
         st["state"] = "offline"
         return st

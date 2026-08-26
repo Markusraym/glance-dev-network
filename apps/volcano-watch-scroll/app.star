@@ -110,7 +110,7 @@ VOLCANO_EDGE = """
 
 def alerts(c, ctx):
     r = http.get("https://volcanoes.usgs.gov/hans-public/api/volcano/getElevatedVolcanoes",
-                 ttl_seconds = 3600)
+                 ttl_seconds = 7200)
     if r["status_code"] != 200 or r["json"] == None:
         nodata(c, "NO USGS DATA", "NO CONNECTION")
         return
