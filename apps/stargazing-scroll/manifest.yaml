@@ -1,7 +1,7 @@
 gdn: 1
 id: stargazing-scroll
 version: 0.1.0
-name: Stargazing (Scroll)
+name: Stargazing
 author: glance-led-dev
 description: Whether tonight is worth setting up the telescope — cloud, moon and darkness in one verdict.
 category: Science

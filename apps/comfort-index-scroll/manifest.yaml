@@ -1,7 +1,7 @@
 gdn: 1
 id: comfort-index-scroll
 version: 0.1.0
-name: Feels Like (Scroll)
+name: Feels Like
 author: glance-led-dev
 description: What the air actually feels like, and why — humidity, dew point and the real temperature.
 category: Weather

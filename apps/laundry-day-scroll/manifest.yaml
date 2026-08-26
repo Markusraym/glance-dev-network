@@ -1,7 +1,7 @@
 gdn: 1
 id: laundry-day-scroll
 version: 0.1.0
-name: Laundry Day (Scroll)
+name: Laundry Day
 author: glance-led-dev
 description: Whether it is worth hanging washing outside today.
 category: Lifestyle
