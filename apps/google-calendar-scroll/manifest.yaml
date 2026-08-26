@@ -1,7 +1,7 @@
 gdn: 1
 id: google-calendar-scroll
 version: 0.1.0
-name: Google Calendar (Scroll)
+name: Google Calendar
 author: glance-led-dev
 description: Your next meeting, today's agenda, and the week ahead, read straight from a Google Calendar secret iCal address. No OAuth and no API key.
 category: Productivity

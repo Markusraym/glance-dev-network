@@ -1,7 +1,7 @@
 gdn: 1
 id: hacker-news-scroll
 version: 0.1.0
-name: Hacker News (Scroll)
+name: Hacker News
 author: glance-led-dev
 description: "The top stories on Hacker News, one per page, with points and comments."
 category: News

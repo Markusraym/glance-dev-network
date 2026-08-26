@@ -1,7 +1,7 @@
 gdn: 1
 id: weather-scene-scroll
 version: 0.1.0
-name: Weather (Scroll)
+name: Weather
 author: glance-led-dev
 description: Now and the next three days, told by drawn weather art rather than words.
 category: Weather
