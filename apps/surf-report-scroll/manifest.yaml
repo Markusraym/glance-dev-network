@@ -13,9 +13,6 @@ refresh: 3600
 
 pages: [surf]
 
-assets:
-  - WAVE.png
-
 inputs:
   - key: zip
     type: string
