@@ -13,9 +13,6 @@ refresh: 3600
 
 pages: [water]
 
-assets:
-  - WATERCAN.png
-
 inputs:
   - key: zip
     type: string
