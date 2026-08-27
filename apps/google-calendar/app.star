@@ -537,14 +537,12 @@ def clip_words(c, text, font, maxw):
 def tab(c, word, x = 4):
     """The blue page chip. Same object, same place, on every page.
 
-    Two pixels shorter on the 64 panel, with the word flush to its bottom
-    edge. That is not a detail: the row it saves is what lets the two agenda
-    cards fit under it without the second title running off the bottom."""
-    wide = c.width >= 128
-    w = c.text_width(word, "4x5")
-    c.round_rect(x, 0, x + w + 3, 7 if wide else 5, 2, fill = BLUE)
-    c.text(word, x + 2, 2 if wide else 1, font = "4x5", color = "white")
-    return x + w + 4
+    Standard pill: c.badge sizes the chip to the text's ink, so the word gets
+    exactly one row above and below at every size. That is one row taller than
+    the chip this used to hand-draw, so the agenda rows below start one row
+    lower -- see AGENDA_TOP."""
+    return x + c.badge(word, x, 0, color = "white", bg = BLUE,
+                       font = "4x5") + 1
 
 def message(c, head, sub, head_color = "amber"):
     """The one screen every failure state shares.
@@ -960,10 +958,14 @@ def today(c, ctx):
             # Two stacked cards, not three rows: a 64px row minus a rail and a
             # time column leaves about six glyphs of title, which is no use to
             # anybody. Stacking the time over the name buys twelve.
-            y = 6 + i * 13
-            c.rect(0, y, 1, y + 12, fill = ev["tint"][0])
+            # The standard pill owns rows 0-6, so the first card starts at 7
+            # and the pair has 25 rows to live in -- one short of two 13-row
+            # cards. The row comes out of the gap inside a card, not the gap
+            # between them: the second card still ends its title on row 31.
+            y = 7 + i * 13
+            c.rect(0, y, 1, y + 11, fill = ev["tint"][0])
             c.text(when, 4, y, font = "4x5", color = hue)
-            c.text(clip_words(c, ev["title"], "4x7", 59), 4, y + 6, font = "4x7",
+            c.text(clip_words(c, ev["title"], "4x7", 59), 4, y + 5, font = "4x7",
                    color = "white")
 
     if len(shown) < rows:
@@ -971,7 +973,7 @@ def today(c, ctx):
             c.text("NO MORE TODAY", 68, 8 + len(shown) * 8 + 1, font = "4x5",
                    color = "midgray")
         else:
-            c.text("NOTHING ELSE", 4, 6 + len(shown) * 13 + 1, font = "4x5",
+            c.text("NOTHING ELSE", 4, 7 + len(shown) * 13 + 1, font = "4x5",
                    color = "midgray")
 
 # ------------------------------------------------------------- page 3: week
@@ -1096,7 +1098,10 @@ def week(c, ctx):
         band, lo, hi = 9, 13, 30
     else:
         x0, colw, inset, half = 1, 9, 1, 3
-        band, lo, hi = 15, 15, 30
+        # One row lower than it used to sit: the standard c.badge pill is a row
+        # taller than the chip this page hand-drew, and the today marker shares
+        # x with it, so without this the two merge into a single blob.
+        band, lo, hi = 16, 16, 30
 
     for i in range(7):
         day = st["today"] + i
@@ -1112,8 +1117,8 @@ def week(c, ctx):
                 c.rect(x + inset, 9, x + colw - 4, 10, fill = allday[i])
         else:
             if mine:
-                c.round_rect(x, 7, x + colw - 2, 13, 1, fill = BLUE)
-            c.text(DOW1[weekday(day)], mid, 8, font = "4x5",
+                c.round_rect(x, 8, x + colw - 2, 14, 1, fill = BLUE)
+            c.text(DOW1[weekday(day)], mid, 9, font = "4x5",
                    color = "white" if mine else "gray", align = "center")
         c.vline(mid, lo, hi - lo + 1, BLUE_DIM if mine else STRUCT)
         if c.width < 128 and allday[i] != None:
