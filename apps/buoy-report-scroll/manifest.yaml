@@ -13,9 +13,6 @@ refresh: 1800
 
 pages: [buoy]
 
-assets:
-  - BUOY.png
-
 inputs:
   - key: station
     type: string
