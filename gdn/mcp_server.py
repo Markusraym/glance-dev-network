@@ -390,8 +390,17 @@ _DATA = Path(__file__).resolve().parent / "data"
 INSTRUCTIONS = """\
 These tools build apps for Glance LED panels. Before writing app.star, read the \
 `glance://reference/authoring` resource — it has the panel model, the full \
-drawing API, and the manifest schema. `glance://template/app.star` is a working \
-app to copy from.
+drawing API, and the manifest schema — and `glance://reference/design` for how \
+good apps look (layout grammar, font roles, color semantics, the four screens). \
+`glance://template/app.star` is a working app to copy from.
+
+Design WITH the user, not for them. Before writing any code, ask how they want \
+the app to look: request a layout — a drawing, a sketch, or a zone-by-zone \
+description (what's the hero, what pixel art, what colors, which widths). Then \
+mock up THEIR layout, render it, and iterate until they approve the look — only \
+then wire up the data. The design guidelines are defaults the user may override \
+case by case; the goal is apps that look great and materially different from \
+every other app, never the same AI template filled in twice.
 
 The rules that bite hardest, because nothing errors when you break them:
 - Panels are 32px tall. Keep text short and high-contrast.
@@ -428,6 +437,17 @@ RESOURCES = [
                        "silently. Read before writing app.star.",
         "mimeType": "text/markdown",
         "_load": lambda: _read(_DATA / "agent_reference.md"),
+    },
+    {
+        "uri": "glance://reference/design",
+        "name": "design_guidelines",
+        "title": "GDN design guidelines",
+        "description": "How good apps look: layout grammar per panel width, "
+                       "font roles and fit ladders, color semantics, icons, "
+                       "and the four screens (live/error/empty/demo) every "
+                       "app designs. Read before laying out a page.",
+        "mimeType": "text/markdown",
+        "_load": lambda: _read(_DATA / "design_guidelines.md"),
     },
     {
         "uri": "glance://template/app.star",
@@ -471,11 +491,20 @@ def _build_an_app(args):
     prompts as slash commands but won't go fetch a resource on their own."""
     want = (args.get("description") or "").strip()
     where = (args.get("path") or "").strip()
-    out = [_read(_DATA / "agent_reference.md"), "---", ""]
+    out = [_read(_DATA / "agent_reference.md"), "---",
+           _read(_DATA / "design_guidelines.md"), "---", ""]
     out.append(f"Build this app: {want}" if want
                else "Ask me what app to build, then build it.")
     if where:
         out.append(f"Create it at {where}.")
+    out.append("")
+    out.append("BEFORE writing any code, ask me how I want the app to look: "
+               "request a layout (a drawing, a sketch, or a zone-by-zone "
+               "description), the hero content, the pixel art, and the colors. "
+               "Mock up MY layout with placeholder content, render it, and "
+               "iterate with me until I approve the look — then wire up the "
+               "data. The guidelines above are defaults I can override; the "
+               "app should end up materially different from other GDN apps.")
     out.append("")
     out.append("Use the glance tools to work the loop above: scaffold, render "
                "and look at the result, fix what you see, check the failure "

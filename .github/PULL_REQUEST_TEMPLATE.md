@@ -7,6 +7,7 @@
 - [ ] It's a single app folder under `apps/`
 - [ ] `gdn validate apps/<my-app>` passes locally
 - [ ] All display text is UPPERCASE
+- [ ] I walked the [design pre-flight checklist](https://glance-led.dev/docs/design/checklist) (contrast, safe zone, labels, error/empty screens)
 - [ ] No API keys or secrets committed
 - [ ] Assets are small PNGs listed under `assets:` in the manifest
 - [ ] I did **not** change `gdn/`, `server.py`, or other apps (or I explained why below)

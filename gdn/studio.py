@@ -905,6 +905,31 @@ header button:disabled:hover { border-color: var(--border2); color: #cfd7d2; }
 .lchev { margin-left: auto; align-self: center; color: #4a554e; flex: 0 0 auto; }
 .landlinks a:hover .lchev { color: var(--green-soft); }
 
+/* ---- Sequence preview: your app in the scroll, between two neighbors ---- */
+#seqcard .seqbezels { display: flex; flex-direction: column; gap: 10px; margin: 10px 0 12px; }
+.seqbezel { background: #05060a; border: 1px solid #1b2230; border-radius: 10px;
+            padding: 10px 12px; }
+.seqbezel canvas { display: block; height: auto; margin: 0 auto; border-radius: 3px;
+                   cursor: zoom-in; }
+.seqbezel .seqplate { text-align: center; margin-top: 6px; font-size: 11px;
+                      font-weight: 700; letter-spacing: .12em; color: #5a6880; }
+.seqctl { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; margin: 6px 0 2px; }
+.seqseg { display: flex; border: 1px solid var(--edge, #2a3330); border-radius: 7px;
+          overflow: hidden; }
+.seqseg button { background: transparent; color: var(--dim); border: 0; cursor: pointer;
+                 font: inherit; font-size: 11.5px; padding: 5px 10px;
+                 border-right: 1px solid var(--edge, #2a3330); }
+.seqseg button:last-child { border-right: 0; }
+.seqseg button.on { background: var(--green-dark, #123a1f); color: var(--green-soft, #2bff6e);
+                    font-weight: 700; }
+#seqoverlay { position: fixed; inset: 0; z-index: 90; display: none; flex-direction: column;
+              align-items: center; justify-content: center; gap: 14px;
+              background: rgba(4,5,9,.94); padding: 24px; }
+#seqoverlay.open { display: flex; }
+#seqoverlay canvas { height: auto; border-radius: 6px;
+                     box-shadow: 0 20px 80px rgba(0,0,0,.8); }
+#seqoverlay .seqotitle { font-weight: 700; letter-spacing: .12em; color: #7a8aa8; }
+
 [hidden] { display: none !important; }
 """
 
@@ -1794,6 +1819,7 @@ async function render(showBusy) {
   }
   updateEditButtons(hasImg);
   attachPlacer(d.pages);   // reconcile the draggable image boxes with the fresh render
+  seqFrames(d.pages);      // feed the sequence preview the same fresh frames
   } finally { if (busy) busy.hidden = true; }
 }
 /* Point at the preview and the readout shows which pixel is under the mouse. */
@@ -3118,6 +3144,283 @@ window.addEventListener('DOMContentLoaded', async () => {
     $('coords').textContent = 'x 96, y 14'; $('coords').classList.add('live');
   }
 });
+
+/* ==== Sequence preview: the app playing in the scroll between neighbors ====
+   Frames come from the same /frames.json render the live preview uses, so the
+   sequence updates on every save. Each panel pixel is drawn as a round LED;
+   names ride the label band pinned to the left edge of their own app, stick
+   at the panel's left edge, and are pushed off by the app's end bar. */
+const SEQ = {
+  S: 5, SB: 14, LH: 55, GAP: 20,   // SB: dot scale for the enlarged V2, so a
+                                   // 64-wide panel stays crisp blown up
+  frames: [],            // [{name, img, dots}] - the open app's pages, in order
+  nb: null,              // {prev: {img, dots}, next: {img, dots}} once loaded
+  offset: 0, flip: 0, mult: 1, playing: true, seams: false, useNb: true,
+  hidden: false, last: null, started: false,
+};
+SEQ.TOP = SEQ.LH + SEQ.GAP;
+try { if (matchMedia('(prefers-reduced-motion: reduce)').matches) SEQ.playing = false; } catch (e) {}
+
+function seqDots(img, S) {
+  S = S || SEQ.S;
+  const t = document.createElement('canvas');
+  t.width = img.naturalWidth; t.height = img.naturalHeight;
+  const tc = t.getContext('2d');
+  tc.drawImage(img, 0, 0);
+  const d = tc.getImageData(0, 0, t.width, t.height).data;
+  const out = document.createElement('canvas');
+  out.width = t.width * S; out.height = t.height * S;
+  const oc = out.getContext('2d');
+  oc.fillStyle = '#000'; oc.fillRect(0, 0, out.width, out.height);
+  const r = S * 0.42;
+  for (let y = 0; y < t.height; y++) for (let x = 0; x < t.width; x++) {
+    const k = (y * t.width + x) * 4;
+    oc.fillStyle = (d[k] < 8 && d[k+1] < 8 && d[k+2] < 8) ? '#0d1017'
+      : 'rgb(' + d[k] + ',' + d[k+1] + ',' + d[k+2] + ')';
+    oc.beginPath(); oc.arc(x*S + S/2, y*S + S/2, r, 0, 6.2832); oc.fill();
+  }
+  return out;
+}
+
+function seqLoad(src) {
+  return new Promise(res => {
+    const im = new Image();
+    im.onload = () => res(im);
+    im.onerror = () => res(null);
+    im.src = src;
+  });
+}
+
+let seqGen = 0;
+async function seqFrames(pages) {           // called from render() on every preview
+  const gen = ++seqGen;
+  // A page can change with TIME (a per-minute rotation) without having more
+  // pages. Render the app one and two minutes ahead too; where a page's
+  // pixels differ, those variants become TURNS - the sequence shows the
+  // next one each time the app re-enters the glass, like the real panel
+  // does across refreshes.
+  const base = $('nowfld').value ? new Date($('nowfld').value) : new Date();
+  const p2 = n => String(n).padStart(2, '0');
+  const fmtN = d => d.getFullYear() + '-' + p2(d.getMonth() + 1) + '-' +
+                p2(d.getDate()) + 'T' + p2(d.getHours()) + ':' + p2(d.getMinutes());
+  const extra = await Promise.all([1, 2].map(k => {
+    const qs = [inputsQS(), appQS(),
+                'now=' + encodeURIComponent(fmtN(new Date(base.getTime() + k * 60000)))]
+      .filter(Boolean).join('&');
+    return fetch('frames.json?' + qs).then(r => r.json()).catch(() => null);
+  }));
+  if (gen !== seqGen) return;               // superseded by a newer render
+  const frames = [];
+  for (let i = 0; i < pages.length; i++) {
+    const name = (pages[i].title && pages[i].title !== pages[i].name
+                  ? pages[i].title : pages[i].name).toUpperCase();
+    const uris = [pages[i].dataUri];
+    extra.forEach(d => {
+      const p = d && d.ok && d.pages && d.pages[i];
+      if (p && p.dataUri && uris.indexOf(p.dataUri) < 0) uris.push(p.dataUri);
+    });
+    const ims = await Promise.all(uris.map(seqLoad));
+    if (gen !== seqGen) return;
+    const vars = ims.filter(Boolean).map(im => ({ img: im, dots: seqDots(im) }));
+    // Turns play back-to-back like pages of the same app: PAGE 1/3, 2/3,
+    // 3/3 in one pass. One turn = just the page name, no counter.
+    vars.forEach((v, k) => frames.push({
+      name: name + (vars.length > 1 ? ' ' + (k + 1) + '/' + vars.length : ''),
+      img: v.img, dots: v.dots,
+    }));
+  }
+  SEQ.frames = frames;
+  if (!SEQ.started) seqStart();
+}
+
+async function seqStart() {
+  SEQ.started = true;
+  try {
+    const d = await (await fetch('neighbors.json')).json();
+    SEQ.nb = {};
+    for (const k of ['prev', 'next', 'prev64', 'next64']) {
+      const im = await seqLoad(d[k] || '');
+      if (im) SEQ.nb[k] = { img: im, dots: seqDots(im) };
+    }
+  } catch (e) { SEQ.nb = {}; }
+  const cvs = document.querySelectorAll('#seqbezels canvas');
+  cvs.forEach(cv => {
+    cv.width = parseInt(cv.getAttribute('data-w'), 10) * SEQ.S;
+    cv.height = 32 * SEQ.S + SEQ.TOP;
+    cv.title = 'Click to enlarge';
+    cv.addEventListener('click', () => seqEnlarge(cv));
+  });
+  requestAnimationFrame(seqTick);
+}
+
+function seqList(v2) {                      // [{name, you, img, dots, w}] in play order
+  const you = SEQ.frames.map(f => ({
+    name: f.name, you: true, img: f.img, dots: f.dots,
+    w: f.img.naturalWidth }));
+  if (!SEQ.useNb || !SEQ.nb) return you;
+  // The V2 panel keeps 64-wide company; the Scroll panels get the 192s.
+  const pv = v2 ? SEQ.nb.prev64 : SEQ.nb.prev;
+  const nx = v2 ? SEQ.nb.next64 : SEQ.nb.next;
+  const out = [];
+  if (pv) out.push({ name: 'PREVIOUS APP', you: false, img: pv.img,
+    dots: pv.dots, w: pv.img.naturalWidth });
+  out.push(...you);
+  if (nx) out.push({ name: 'NEXT APP', you: false, img: nx.img,
+    dots: nx.dots, w: nx.img.naturalWidth });
+  return out;
+}
+
+// The enlarged V2 draws at the big dot scale; its dot bitmaps are built
+// lazily and live on the frame objects (which are remade on every render,
+// so they can never go stale).
+function seqBig(f) {
+  if (!f.big) f.big = seqDots(f.img, SEQ.SB);
+  return f.big;
+}
+
+function seqDrawPanel(cv, seq, tw) {
+  const bigV2 = cv.id === 'seqbig' && cv.hasAttribute('data-v2');
+  const S = bigV2 ? SEQ.SB : SEQ.S;
+  const LH = 11 * S, GAP = 4 * S, TOP = LH + GAP;
+  const D = f => bigV2 ? seqBig(f) : f.dots;
+  const viewW = parseInt(cv.getAttribute('data-w'), 10);
+  const ctx = cv.getContext('2d');
+  ctx.fillStyle = '#05070c'; ctx.fillRect(0, 0, viewW * S, LH);
+  ctx.fillStyle = '#05060a'; ctx.fillRect(0, LH, viewW * S, GAP);
+  ctx.fillStyle = '#000'; ctx.fillRect(0, TOP, viewW * S, 32 * S);
+  if (cv.hasAttribute('data-v2')) {
+    // V2 is a PAGE-FLIP product: no scrolling. Each frame dwells ~3s, then
+    // the panel updates to the next one (the speed control scales the dwell).
+    const idx = Math.floor(SEQ.flip / 3) % seq.length;
+    const f = seq[idx];
+    ctx.drawImage(D(f), Math.max(0, ((viewW - f.w) >> 1)) * S, TOP);
+    ctx.font = (f.you ? '700 ' : '600 ') + (f.you ? 7 : 6) * S + 'px ' +
+               'ui-monospace, Menlo, monospace';
+    ctx.fillStyle = f.you ? '#78dcff' : '#6e7a94';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(f.name, 2 * S, LH / 2 + 2);
+    return;
+  }
+  ctx.textBaseline = 'middle';
+  const start = -(SEQ.offset % tw) - tw;
+  for (let x = start; x < viewW; ) {
+    for (let i = 0; i < seq.length; i++) {
+      const f = seq[i];
+      if (x + f.w > 0 && x < viewW) {
+        const rx = Math.round(x);
+        ctx.drawImage(f.dots, rx * S, TOP);
+        // sticky-left name: rides its app in, pins at the panel edge, and is
+        // pushed off by the app's own end bar
+        ctx.font = (f.you ? '700 ' : '600 ') + (f.you ? 7 : 6) * S + 'px ' +
+                   'ui-monospace, Menlo, monospace';
+        ctx.fillStyle = f.you ? '#78dcff' : '#6e7a94';
+        ctx.textAlign = 'left';
+        const pad = 2 * S, lw = ctx.measureText(f.name).width;
+        let lx = Math.max(rx * S + pad, pad);
+        lx = Math.min(lx, (rx + f.w) * S - lw - pad);
+        ctx.fillText(f.name, lx, LH / 2 + 2);
+        const prev = seq[(i + seq.length - 1) % seq.length];
+        ctx.fillStyle = (f.you && prev.you) ? '#31567a' : '#39445a';
+        ctx.fillRect(rx * S, 0, 2, TOP);
+        if (SEQ.seams) {
+          ctx.fillStyle = 'rgba(232,176,74,0.85)';
+          ctx.fillRect(rx * S, TOP, 2, S * 2);
+          ctx.fillRect(rx * S, TOP + 30 * S, 2, S * 2);
+        }
+      }
+      x += f.w;
+    }
+  }
+}
+
+function seqDrawAll() {
+  if (!SEQ.frames.length) return;
+  // A 64-wide app gets its real product too: the V2 panel, with 64-wide
+  // apps for company. Wider apps hide it.
+  const w0 = SEQ.frames[0].img.naturalWidth;
+  const v2b = $('seqv2');
+  if (v2b) v2b.hidden = (w0 !== 64);
+  document.querySelectorAll('#seqbezels canvas').forEach(cv => {
+    const isv2 = cv.hasAttribute('data-v2');
+    if (isv2 && w0 !== 64) return;
+    const seq = seqList(isv2);
+    if (!seq.length) return;
+    seqDrawPanel(cv, seq, seq.reduce((s, f) => s + f.w, 0));
+  });
+  const ov = $('seqoverlay');
+  if (ov && ov.classList.contains('open')) {
+    const big = $('seqbig');
+    const seq = seqList(big.hasAttribute('data-v2'));
+    if (seq.length) seqDrawPanel(big, seq, seq.reduce((s, f) => s + f.w, 0));
+  }
+}
+
+function seqTick(t) {
+  if (SEQ.playing && !SEQ.hidden && SEQ.frames.length) {
+    if (SEQ.last !== null) {
+      const dt = (t - SEQ.last) / 1000;
+      SEQ.offset += dt * 42 * SEQ.mult;   // the Scroll panels move
+      SEQ.flip += dt * SEQ.mult;          // the V2 dwell clock ticks
+    }
+    SEQ.last = t;
+    seqDrawAll();
+  } else { SEQ.last = null; }
+  requestAnimationFrame(seqTick);
+}
+
+function seqEnlarge(cv) {
+  const w = cv.getAttribute('data-w');
+  const isv2 = cv.hasAttribute('data-v2');
+  const big = $('seqbig');
+  big.setAttribute('data-w', w);
+  if (isv2) big.setAttribute('data-v2', '1'); else big.removeAttribute('data-v2');
+  const bs = isv2 ? SEQ.SB : SEQ.S;   // the V2 blows up: render it dense
+  big.width = parseInt(w, 10) * bs;
+  big.height = 32 * bs + 15 * bs;
+  if (isv2) {
+    big.style.width = 'min(46vw, 820px)';   // its own product, its own scale
+  } else {
+    // normalized on the Premier: every Scroll panel enlarges at the same LED scale
+    const f = parseInt(w, 10) / 640;
+    big.style.width = 'min(' + (94 * f) + 'vw, ' + Math.round(1700 * f) + 'px)';
+  }
+  $('seqotitle').textContent = isv2 ? 'V2 · 64' : 'SCROLL · ' +
+    (w === '192' ? 'STUDIO 192' : w === '384' ? 'PRO 384' : 'PREMIER 640');
+  $('seqoverlay').classList.add('open');
+  seqDrawAll();
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const sc = $('seqcard');
+  if (!sc) return;
+  $('seqhide').addEventListener('click', () => {
+    SEQ.hidden = !SEQ.hidden;
+    $('seqbezels').hidden = SEQ.hidden;
+    document.querySelector('#seqcard .seqctl').hidden = SEQ.hidden;
+    $('seqhide').textContent = SEQ.hidden ? 'Show' : 'Hide';
+  });
+  const seg = $('seqspeed');
+  seg.querySelectorAll('button').forEach(b => b.addEventListener('click', () => {
+    seg.querySelectorAll('button').forEach(x => x.classList.remove('on'));
+    b.classList.add('on');
+    SEQ.mult = parseFloat(b.getAttribute('data-mult'));
+  }));
+  $('seqplay').addEventListener('click', () => {
+    SEQ.playing = !SEQ.playing;
+    $('seqplay').textContent = SEQ.playing ? 'Pause' : 'Play';
+    if (!SEQ.playing) seqDrawAll();
+  });
+  if (!SEQ.playing) $('seqplay').textContent = 'Play';
+  $('seqnb').addEventListener('change', e => { SEQ.useNb = !e.target.checked; seqDrawAll(); });
+  $('seqseams').addEventListener('change', e => { SEQ.seams = e.target.checked; seqDrawAll(); });
+  $('seqoverlay').addEventListener('click', e => {
+    if (e.target === $('seqoverlay')) $('seqoverlay').classList.remove('open');
+  });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') $('seqoverlay').classList.remove('open');
+  });
+});
 """
 
 
@@ -3214,6 +3517,37 @@ _HTML = """<!doctype html><html><head><meta charset="utf-8">
         <button class="ghost small" id="addpagebtn"
                 title="Add another screen your app cycles through">+ Add page</button>
         <span class="addpagehint">A page is one screen. Glance cycles through them.</span>
+      </div>
+      <div class="card" id="seqcard">
+        <div class="card-head">
+          <span class="card-title">Preview your app in action</span>
+          <button class="ghost small" id="seqhide">Hide</button>
+        </div>
+        <div class="card-hint">SCROLL is dynamic &mdash; your app plays in a moving sequence
+          with other apps. Make sure the text stays readable as it scrolls (people watch from
+          10&ndash;30 feet), that nothing merges with the apps before and after it, and judge
+          it on the Studio panel: if it reads well there, it looks good on every size.</div>
+        <div class="seqbezels" id="seqbezels">
+          <div class="seqbezel" id="seqv2" hidden><canvas data-w="64" data-v2="1" style="width:10%"
+            aria-label="V2 64 panel"></canvas><div class="seqplate">V2 &middot; 64</div></div>
+          <div class="seqbezel"><canvas data-w="192" style="width:30%"
+            aria-label="Studio 192 panel"></canvas><div class="seqplate">SCROLL &middot; STUDIO 192</div></div>
+          <div class="seqbezel"><canvas data-w="384" style="width:60%"
+            aria-label="Pro 384 panel"></canvas><div class="seqplate">SCROLL &middot; PRO 384</div></div>
+          <div class="seqbezel"><canvas data-w="640" style="width:100%"
+            aria-label="Premier 640 panel"></canvas><div class="seqplate">SCROLL &middot; PREMIER 640</div></div>
+        </div>
+        <div class="seqctl">
+          <div class="seqseg" id="seqspeed">
+            <button data-mult="0.25">&frac14;&times;</button>
+            <button data-mult="0.5">&frac12;&times;</button>
+            <button data-mult="1" class="on">1&times;</button>
+            <button data-mult="2">2&times;</button>
+          </div>
+          <button class="ghost small" id="seqplay">Pause</button>
+          <label class="toggle"><input type="checkbox" id="seqnb"> Hide neighboring apps</label>
+          <label class="toggle"><input type="checkbox" id="seqseams"> Mark app seams</label>
+        </div>
       </div>
       <div class="card" id="placecard" hidden>
         <div class="card-head">
@@ -3563,6 +3897,13 @@ _HTML = """<!doctype html><html><head><meta charset="utf-8">
       <button class="accent" id="importok" type="button">Import image</button>
     </div>
   </div>
+</div>
+
+<!-- Sequence preview, enlarged: one panel full-screen -->
+<div id="seqoverlay" role="dialog" aria-modal="true" aria-label="Enlarged panel view">
+  <div class="seqotitle" id="seqotitle">SCROLL &middot; STUDIO 192</div>
+  <canvas id="seqbig"></canvas>
+  <div class="card-hint">esc or click outside to close</div>
 </div>
 
 <!-- Debug log: failed Studio requests, for pasting into a bug report -->
@@ -3915,6 +4256,21 @@ def create_server(app_dir: Path):
             return jsonify({"ok": False, "error": str(e)})
 
     # ---- rendering + checking -------------------------------------------
+    @server.get("/neighbors.json")
+    def neighbors():
+        """Stock neighbor frames for the sequence preview: the app that plays
+        before yours and the one after, shipped with the SDK."""
+        import base64 as _b64
+        out = {}
+        d = Path(__file__).resolve().parent / "data" / "sequence"
+        for k, fn in (("prev", "prev.png"), ("next", "next.png"),
+                      ("prev64", "prev64.png"), ("next64", "next64.png")):
+            p = d / fn
+            if p.exists():
+                out[k] = ("data:image/png;base64,"
+                          + _b64.b64encode(p.read_bytes()).decode("ascii"))
+        return jsonify(out)
+
     @server.get("/frames.json")
     def frames():
         """Render every page of the app, the live preview polls this."""

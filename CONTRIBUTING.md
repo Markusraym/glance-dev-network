@@ -40,6 +40,11 @@ submitting one is safe by design — it can only draw a picture, nothing else.
   wonder what a "secret key" is. Set `help_url:` in the manifest only to point somewhere
   else.
 - **Text is UPPERCASE** (the panel fonts have no lowercase).
+- **It follows the design guidelines.** High contrast on a black ground, one hero per
+  page, content inside the safe zone on scroll widths, every number labelled, and a
+  designed error / empty / demo screen. The full guide and the pre-flight checklist are
+  at https://glance-led.dev/docs/design (also in this repo as
+  [`gdn/data/design_guidelines.md`](gdn/data/design_guidelines.md)).
 
 ## What happens next
 
