@@ -152,9 +152,10 @@ def date(c, ctx):
         board(c, [[DOW[t["weekday"]], "10x16"], [MON[t["month"] - 1], "10x16"],
                   [str(t["day"]), "10x16"]], accent, 4)
     else:
-        # Three word-cards are wider than 64px however they are packed, so the
-        # small panel drops the weekday and keeps the part you came for.
-        board(c, [[MON[t["month"] - 1], "6x8"], [str(t["day"]), "6x8"]],
+        # The day of the month is what anyone actually reads off a date, so it
+        # takes the clock's own 10x16 face and the month stays a small flap
+        # beside it: 56 of the 64 columns. Three word-flaps do not fit at any
+        # size, and the weekday was the one part still floating loose rather
+        # than riding a flap, so it goes rather than break the object.
+        board(c, [[MON[t["month"] - 1], "6x8"], [str(t["day"]), "10x16"]],
               accent, 3)
-        c.text(DOW[t["weekday"]], c.width // 2, 1, font = "4x5",
-               color = "#6A6C86", align = "center")
