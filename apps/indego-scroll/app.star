@@ -270,12 +270,28 @@ def resolve_station(ctx):
     return ""
 
 
-def count_color(n):
+def count_color(n, cap = 0):
     """White while there is nothing to worry about, so amber and red keep their
-    meaning. Colouring every state leaves no colour to raise an alarm with."""
+    meaning. Colouring every state leaves no colour to raise an alarm with.
+
+    The warning is a SHARE of the station, not a fixed count. Three bikes left
+    at a 6-dock kiosk is half of it and nothing to worry about; three left at a
+    35-dock hub means it is nearly picked clean and the next person off the
+    train gets nothing. A flat threshold called those the same. Amber at the
+    last 20%, red at the last 5% -- and 0 is always red, whatever the size.
+
+    `cap` is the station's own dock count. Without it the old fixed steps still
+    apply, so a caller that cannot supply one degrades rather than breaks."""
     if n <= 0:
         return "#FF2D2D"
-    if n <= 3:
+    if cap <= 0:
+        if n <= 3:
+            return "#FFB000"
+        return WHITE
+    # integer maths only -- Starlark has no float formatting on the panel path
+    if n * 20 <= cap:
+        return "#FF2D2D"
+    if n * 5 <= cap:
         return "#FFB000"
     return WHITE
 
@@ -348,6 +364,11 @@ def bikes(c, ctx):
     if ebikes > total:
         ebikes = total
 
+    # The station's own size: every dock is either holding a bike or empty,
+    # so the two counts add up to the kiosk's capacity. That is what makes the
+    # warning colours a share of the station rather than a flat number.
+    cap = total + docks
+
     renting = found.get("is_renting", True)
     returning = found.get("is_returning", True)
 
@@ -374,9 +395,9 @@ def bikes(c, ctx):
         labels = ["BIKES", "E-BIKES", "DOCKS"]
         nums = [tstr, str(ebikes), dstr]
         colors = [
-            SLATE if not renting else count_color(total),
+            SLATE if not renting else count_color(total, cap),
             WHITE if ebikes > 0 else "#33404A",
-            SLATE if not returning else count_color(docks),
+            SLATE if not returning else count_color(docks, cap),
         ]
 
         numf = NUM_FONTS[len(NUM_FONTS) - 1]
@@ -418,13 +439,13 @@ def bikes(c, ctx):
         c.text(nf[1], 1, 0, font = nf[0], color = CHROME)
         c.sprite(BIKE_SMALL, 1, 8, legend = BIKE_LEGEND)
         c.text(tstr, 21, 7, font = "10x16",
-               color = SLATE if not renting else count_color(total))
+               color = SLATE if not renting else count_color(total, cap))
         bx = 21 + c.text_width(tstr, "10x16") + 4
         if ebikes > 0 and bx + 4 + c.text_width(str(ebikes), "5x7") <= c.width - 2:
             c.sprite(BOLT, bx, 8, legend = {"Y": YELLOW})
             c.text(str(ebikes), bx + 6, 9, font = "5x7", color = WHITE)
         c.text(dstr + " FREE", c.width - 2, 23, font = "4x5",
-               color = SLATE if not returning else count_color(docks),
+               color = SLATE if not returning else count_color(docks, cap),
                align = "right")
         meter(c, 1, c.width - 2, total, ebikes, docks)
         if not renting:
