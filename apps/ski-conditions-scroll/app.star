@@ -27,7 +27,7 @@ FONTH = {"16x20": 20, "10x16": 16, "10x15_outline": 15, "8x12": 12,
 # reading and IN/CM is a footnote on it. Bottom-aligned with the number and
 # set 3px clear of it, so the pair reads as one figure without the unit
 # competing with the digits for weight.
-UNITF = "8x12"
+UNITF = "6x8"
 UNIT_GAP = 3
 
 # No panel font carries a degree glyph (it measures 0 and draws nothing, which
