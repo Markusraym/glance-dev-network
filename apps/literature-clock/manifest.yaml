@@ -4,7 +4,7 @@ version: 0.1.0
 name: Literature Clock
 author: glance-led-dev
 description: The current minute as a passage from a novel that names that exact time, with the clock glowing inside the prose. No API key.
-category: Clocks
+category: Time
 entry: app.star
 
 width: 192
