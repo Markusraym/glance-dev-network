@@ -2,7 +2,7 @@ gdn: 1
 id: close-approach
 version: 0.1.0
 name: Close Approach
-author: Mark
+author: Markusraym
 description: The asteroid passing closest to Earth today. Distance in lunar distances, size, speed, and a hazard warning if NASA has flagged it.
 category: Science
 entry: app.star
