@@ -4,7 +4,7 @@ version: 0.1.0
 name: Word Clock
 author: glance-led-dev
 description: A QLOCKTWO in landscape — the time spelled out in a field of letters, with four dots carrying the odd minutes. No network.
-category: Clocks
+category: Time
 entry: app.star
 
 width: 192
