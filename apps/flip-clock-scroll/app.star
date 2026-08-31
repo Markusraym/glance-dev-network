@@ -134,12 +134,13 @@ def clock(c, ctx):
     c.fill("#05060A")
     hh, mm = fmt.pad(h12(t["hour"])), fmt.pad(t["minute"])
     if c.width >= 128:
-        # The meridiem gets a flap of its own, in the same centred row as the
-        # hour and the minute. A 64 panel has no room for a third flap beside
-        # a 10x16 time -- two flaps and a gap already take 58 of its 64
-        # columns -- so it keeps the two it can read at a glance.
+        # The meridiem gets a flap of its own at the time's own face, in the
+        # same centred row: three flaps at 16x20 are 125 of the 192 columns.
+        # A 64 panel has no room for a third flap beside a 10x16 time -- two
+        # flaps and a gap already take 58 of its 64 -- so it keeps the two it
+        # can read at a glance.
         board(c, [[hh, "16x20"], [mm, "16x20"],
-                  ["AM" if t["hour"] < 12 else "PM", "6x8"]], accent, 4)
+                  ["AM" if t["hour"] < 12 else "PM", "16x20"]], accent, 4)
     else:
         board(c, [[hh, "10x16"], [mm, "10x16"]], accent, 4)
 
@@ -149,8 +150,11 @@ def date(c, ctx):
     accent = ctx.inputs.get("accent", "#F5E14B")
     c.fill("#05060A")
     if c.width >= 128:
-        board(c, [[DOW[t["weekday"]], "10x16"], [MON[t["month"] - 1], "10x16"],
-                  [str(t["day"]), "10x16"]], accent, 4)
+        # The date reads at the same size as the time -- the two pages are the
+        # same object seen twice, and a smaller date made the date page look
+        # like a caption on the clock. Three 16x20 flaps are 159 of 192.
+        board(c, [[DOW[t["weekday"]], "16x20"], [MON[t["month"] - 1], "16x20"],
+                  [str(t["day"]), "16x20"]], accent, 4)
     else:
         # Three word-cards are wider than 64px however they are packed, so the
         # small panel drops the weekday and keeps the part you came for.
