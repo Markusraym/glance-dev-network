@@ -2,7 +2,7 @@ gdn: 1
 id: gasparilla-countdown
 version: 0.1.0
 name: Gasparilla Countdown
-author: Mark Ploski
+author: Markusraym
 description: Counts down the days until the Gasparilla pirate festival, with a pirate flag.
 category: Lifestyle
 entry: app.star
