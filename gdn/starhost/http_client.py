@@ -134,8 +134,13 @@ def _fetch(url, headers, params):
     only if every attempt fails (the caller turns that into status_code 0).
     Government hosts (DIRECT_SUFFIXES) skip the pool entirely — see above."""
     if _direct_host(url):
-        return requests.get(url, headers=headers, params=params,
-                            timeout=REQUEST_TIMEOUT, allow_redirects=False)
+        # trust_env=False so a host-level HTTP(S)_PROXY environment variable
+        # can't silently put this traffic back on a proxy — "direct" must
+        # mean the render host's own IP, whatever the box's env looks like.
+        with requests.Session() as s:
+            s.trust_env = False
+            return s.get(url, headers=headers, params=params,
+                         timeout=REQUEST_TIMEOUT, allow_redirects=False)
     pool = _load_proxies()
     chosen = random.sample(pool, min(PROXY_ATTEMPTS, len(pool))) if pool else [None]
     last = None
