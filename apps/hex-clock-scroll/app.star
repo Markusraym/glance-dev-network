@@ -95,8 +95,14 @@ def hx(v):
 
 
 def ink(r, g, b):
-    """Black on light backgrounds, white on dark ones (Rec. 601 luma)."""
-    return "#000000" if (r * 299 + g * 587 + b * 114) / 1000.0 > 140 else "#FFFFFF"
+    """Black on light backgrounds, a bright accent on dark ones.
+
+    The background here is the clock itself -- hour, minute and second read as
+    R, G and B -- so it can never be brighter than #173B3B and the panel is
+    always close to black. Plain white on that read as flat grey at a glance,
+    so the dark branch takes a bright amber instead: it carries against every
+    hour of the day and gives the tile some life."""
+    return "#000000" if (r * 299 + g * 587 + b * 114) / 1000.0 > 140 else "#FFD23D"
 
 
 def parts(ctx):
