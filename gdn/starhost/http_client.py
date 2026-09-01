@@ -33,6 +33,7 @@ import os
 import random
 import time
 from pathlib import Path
+from urllib.parse import urlsplit
 
 import requests
 
@@ -106,11 +107,35 @@ def _load_proxies() -> list:
     return proxies
 
 
+# Hosts whose traffic must NOT go through the proxy pool. Government APIs
+# (weather.gov, the NOAA/USGS/FDA families, navy.mil, tfl.gov.uk) block
+# commercial proxy ranges, and the repeated blocks were getting the pool's
+# IPs banned by the proxy provider — so government traffic egresses directly
+# from the render host's own IP instead. The match is a strict hostname
+# SUFFIX against registry-controlled zones (never a substring, so
+# "metadata.gov.evil.com" cannot buy a direct connection), and redirects
+# stay disabled in _fetch, so a .gov response can't bounce the direct
+# request somewhere else.
+DIRECT_SUFFIXES = (".gov", ".mil", ".gov.uk")
+
+
+def _direct_host(url) -> bool:
+    try:
+        host = urlsplit(url).hostname or ""
+    except ValueError:
+        return False
+    return host.lower().rstrip(".").endswith(DIRECT_SUFFIXES)
+
+
 def _fetch(url, headers, params):
     """One logical GET, routed through the proxy pool with rotation + retry.
     Redirects are disabled so a public URL can't bounce the request to an internal
     address; a 3xx is handed back to the app as-is. Raises requests.RequestException
-    only if every attempt fails (the caller turns that into status_code 0)."""
+    only if every attempt fails (the caller turns that into status_code 0).
+    Government hosts (DIRECT_SUFFIXES) skip the pool entirely — see above."""
+    if _direct_host(url):
+        return requests.get(url, headers=headers, params=params,
+                            timeout=REQUEST_TIMEOUT, allow_redirects=False)
     pool = _load_proxies()
     chosen = random.sample(pool, min(PROXY_ATTEMPTS, len(pool))) if pool else [None]
     last = None
