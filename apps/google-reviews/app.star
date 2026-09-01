@@ -219,16 +219,43 @@ def fetch_cid(placeid):
             break
     return [cid if cid != "" else None, r["status_code"]]
 
-def fetch_place(url):
-    """Keyless: the classic embed payload. ~3.5 KB containing
-    ..,"Short Name",["addr lines"],RATING,"N reviews","https://search.google..
-    which is everything the scorecard needs — plus the Place ID (inside the
-    widget URL), which feeds the optional review-texts page. 30 min matches
-    how often Google recomputes the public rating."""
+def fetch_body(url):
+    """One embed fetch; None means unreachable. 30 min matches how often
+    Google recomputes the public rating."""
     r = http.get(url, headers = {"User-Agent": UA}, ttl_seconds = 1800)
     if r["status_code"] != 200:
-        return "offline"
-    body = r["body"]
+        return None
+    return r["body"]
+
+def first_list_cid(body):
+    """A query matching SEVERAL places (chains: "Starbucks Hollywood FL")
+    makes the embed return a result LIST, not one place. Each entry opens
+    [["<featureid>","<CID>"],"/g/.. — take the top match's CID so a second
+    embed-by-CID hop resolves it. Verified against the single-place payload:
+    the second id is the CID there too."""
+    i = body.find('[[["')
+    if i < 0:
+        return None
+    seg = body[i + 4:i + 64]
+    j = seg.find('","')
+    if j < 0:
+        return None
+    k = seg.find('"', j + 3)
+    if k < 0:
+        return None
+    cid = seg[j + 3:k]
+    if len(cid) < 10:
+        return None
+    for ch in cid.elems():
+        if ch < "0" or ch > "9":
+            return None
+    return cid
+
+def parse_place(body):
+    """The single-place embed payload. ~3.5 KB containing
+    ..,"Short Name",["addr lines"],RATING,"N reviews","https://search.google..
+    which is everything the scorecard needs — plus the Place ID (inside the
+    widget URL), which feeds the optional review-texts page."""
     p = body.find(',"https://search.google.com/local/reviews')
     if p < 0:
         return None            # no single matched place (region result, typo)
@@ -290,6 +317,23 @@ def fetch_reviews(placeid, apikey):
         })
     return [out, None]
 
+def query_overlap(ctx, matched_name):
+    """How many meaningful words (4+ letters) of the user's query appear in
+    the matched business name. 0 = probably the wrong business."""
+    biz = str(ctx.inputs.get("business", "")).upper()
+    if biz.startswith("CHIJ"):
+        return 1   # exact-ID mode can't mismatch
+    hits = 0
+    word = ""
+    for ch in (biz + " ").elems():
+        if (ch >= "A" and ch <= "Z"):
+            word += ch
+        else:
+            if len(word) >= 4 and matched_name.find(word) >= 0:
+                hits += 1
+            word = ""
+    return hits
+
 def query_encode(q):
     """A business name + city as the embed's query token: spaces to +, and
     only characters that can't break the pb blob survive."""
@@ -314,16 +358,26 @@ def load_place(ctx):
         cid, status = fetch_cid(biz)
         if cid == None:
             return [None, "offline" if status == 0 else "notfound"]
-        place = fetch_place(EMBED_CID_URL.replace("{CID}", cid))
-        if place == "offline" or place == None:
+        body = fetch_body(EMBED_CID_URL.replace("{CID}", cid))
+        if body == None:
             return [None, "offline"]
-        return [place, None]
+        place = parse_place(body)
+        return [place, None] if place != None else [None, "offline"]
     q = query_encode(biz)
     if q == "":
         return [None, "notfound"]
-    place = fetch_place(EMBED_Q_URL.replace("{Q}", q))
-    if place == "offline":
+    body = fetch_body(EMBED_Q_URL.replace("{Q}", q))
+    if body == None:
         return [None, "offline"]
+    place = parse_place(body)
+    if place == None:
+        # Several matches came back — resolve the top one by CID.
+        cid = first_list_cid(body)
+        if cid != None:
+            body2 = fetch_body(EMBED_CID_URL.replace("{CID}", cid))
+            if body2 == None:
+                return [None, "offline"]
+            place = parse_place(body2)
     if place == None:
         return [None, "notfound"]
     return [place, None]
@@ -342,7 +396,14 @@ def rating(c, ctx):
             message(c, "GOOGLE UNREACHABLE", "RATING RETURNS NEXT REFRESH")
         return
 
-    chrome(c, "DEMO" if place["demo"] else "", "amber")
+    # Google fuzzy-matches aggressively (a nonsense query still returns the
+    # nearest similar-sounding business), so when the matched name shares no
+    # word with what the user typed, say so instead of quietly showing a
+    # stranger's rating.
+    meta = "DEMO" if place["demo"] else ""
+    if not place["demo"] and query_overlap(ctx, place["name"]) == 0:
+        meta = "CHECK MATCH"
+    chrome(c, meta, "amber")
 
     # Business name — a whole name in a smaller font beats a clipped name in
     # a big one ("ALL COMPUTER TECHNIQUES" fits 4x7; "ALL COMPUTER" told
