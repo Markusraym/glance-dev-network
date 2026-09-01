@@ -350,7 +350,7 @@ def stopped(s):
 
 def read_tube(ctx):
     st = {"state": "ok", "lines": [], "bad": 0, "worst": 99, "wsev": 10}
-    r = http.get(TFL, ttl_seconds = 120)
+    r = http.get(TFL, ttl_seconds = 600)  # in sync with the manifest refresh
     if r["status_code"] != 200 or r["json"] == None:
         st["state"] = "offline"
         return st
