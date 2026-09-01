@@ -15,6 +15,7 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 
 from gdn.starhost import (StarError, StarTimeout, app_meta, app_page_count,
                           esp_endpoint, run_star_app_sandboxed)
+from gdn.starhost.http_client import DIRECT_SUFFIXES
 from gdn.scene import SceneError, render_scene
 
 # This file is at <repo>/server/server.py, so the apps live one level up.
@@ -107,7 +108,11 @@ def _apps():
 
 @app.get("/healthz")
 def healthz():
-    return {"ok": True, "apps": len(_apps())}
+    # direct_egress answers "which build is this box running?" — an ops box
+    # still routing .gov traffic through the proxy pool is one missing this
+    # field (pre-direct-egress build) or one that isn't this service at all.
+    return {"ok": True, "apps": len(_apps()),
+            "direct_egress": list(DIRECT_SUFFIXES)}
 
 
 @app.get("/api/apps")
