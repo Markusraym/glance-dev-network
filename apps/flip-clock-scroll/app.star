@@ -86,36 +86,45 @@ def h12(h):
     return 12 if v == 0 else v
 
 
-def card(c, x, y, w, h, text, font, accent):
+def card(c, x, y, w, h, text, font, accent, seam = True):
     c.round_rect(x, y, x + w - 1, y + h - 1, 2, fill = "#15161F")
     c.round_rect(x, y, x + w - 1, y + h - 1, 2, outline = "#2C2E3E")
     c.text(text, x + w // 2, y + (h - _fh(font)) // 2, font = font,
            color = accent, align = "center")
-    # the seam the flap folds on
-    c.hline(x + 1, y + h // 2, w - 2, "#05060A")
+    # The seam the flap folds on. It is drawn only where it reads as a fold:
+    # across a 20-row digit it costs one row in twenty, but across an 8-row
+    # word it takes the row that joins P's bowl to its stem and M's peaks to
+    # its legs, and the word stops being a word.
+    if seam:
+        c.hline(x + 1, y + h // 2, w - 2, "#05060A")
 
 
 def _fh(font):
     return {"16x20": 20, "10x16": 16, "7x12": 12, "6x8": 8, "5x7": 7, "4x5": 5}[font]
 
 
-def board(c, cells, font, accent, gap):
+def board(c, cells, accent, gap):
     """Lay a row of cards out centred on the panel.
 
-    Each card is sized to its own contents. Sizing every card for two digits
-    made the date board's words spill straight out of their flaps."""
-    ch = _fh(font) + 6
-    widths = []
+    A cell is [text, font]: each card is sized to its own contents AND its own
+    face, and every card is centred on the panel's middle row. Carrying the
+    face per cell is what lets a small flap sit in the same rank as the big
+    ones -- the meridiem used to be loose text pinned to the right edge, which
+    read as a label ABOUT the clock rather than a flap of it. Sizing every card
+    for two digits, meanwhile, made the date board's words spill out of their
+    flaps."""
+    widths, heights = [], []
     total = 0
-    for s in cells:
-        w = c.text_width(s, font) + 6
+    for cell in cells:
+        w = c.text_width(cell[0], cell[1]) + 6
         widths.append(w)
+        heights.append(_fh(cell[1]) + 6)
         total += w
     total += (len(cells) - 1) * gap
     x = (c.width - total) // 2
-    y = (c.height - ch) // 2
     for i in range(len(cells)):
-        card(c, x, y, widths[i], ch, cells[i], font, accent)
+        card(c, x, (c.height - heights[i]) // 2, widths[i], heights[i],
+             cells[i][0], cells[i][1], accent, _fh(cells[i][1]) >= 12)
         x += widths[i] + gap
 
 
@@ -123,11 +132,17 @@ def clock(c, ctx):
     t = local(ctx)
     accent = ctx.inputs.get("accent", "#F5E14B")
     c.fill("#05060A")
-    font = "16x20" if c.width >= 128 else "10x16"
-    board(c, [fmt.pad(h12(t["hour"])), fmt.pad(t["minute"])], font, accent, 4)
+    hh, mm = fmt.pad(h12(t["hour"])), fmt.pad(t["minute"])
     if c.width >= 128:
-        c.text("AM" if t["hour"] < 12 else "PM", c.width - 8, 12, font = "6x8",
-               color = "#6A6C86", align = "right")
+        # The meridiem gets a flap of its own at the time's own face, in the
+        # same centred row: three flaps at 16x20 are 125 of the 192 columns.
+        # A 64 panel has no room for a third flap beside a 10x16 time -- two
+        # flaps and a gap already take 58 of its 64 -- so it keeps the two it
+        # can read at a glance.
+        board(c, [[hh, "16x20"], [mm, "16x20"],
+                  ["AM" if t["hour"] < 12 else "PM", "16x20"]], accent, 4)
+    else:
+        board(c, [[hh, "10x16"], [mm, "10x16"]], accent, 4)
 
 
 def date(c, ctx):
@@ -135,11 +150,15 @@ def date(c, ctx):
     accent = ctx.inputs.get("accent", "#F5E14B")
     c.fill("#05060A")
     if c.width >= 128:
-        board(c, [DOW[t["weekday"]], MON[t["month"] - 1], str(t["day"])],
-              "10x16", accent, 4)
+        # The date reads at the same size as the time -- the two pages are the
+        # same object seen twice, and a smaller date made the date page look
+        # like a caption on the clock. Three 16x20 flaps are 159 of 192.
+        board(c, [[DOW[t["weekday"]], "16x20"], [MON[t["month"] - 1], "16x20"],
+                  [str(t["day"]), "16x20"]], accent, 4)
     else:
         # Three word-cards are wider than 64px however they are packed, so the
         # small panel drops the weekday and keeps the part you came for.
-        board(c, [MON[t["month"] - 1], str(t["day"])], "6x8", accent, 3)
+        board(c, [[MON[t["month"] - 1], "6x8"], [str(t["day"]), "6x8"]],
+              accent, 3)
         c.text(DOW[t["weekday"]], c.width // 2, 1, font = "4x5",
                color = "#6A6C86", align = "center")
