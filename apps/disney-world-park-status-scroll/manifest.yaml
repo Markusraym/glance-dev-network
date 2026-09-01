@@ -1,0 +1,24 @@
+gdn: 1
+id: disney-world-park-status-scroll
+version: 0.1.0
+name: "Disney World Parks (Scroll)"
+author: "Olskoolgamer"
+description: The scroll companion to drb116's Disney World Parks - one page per Orlando park with its pixel wordmark and landmark art (the castle, Spaceship Earth, the Tower of Terror, the Tree of Life), the crowd meter, and what the extra width is for - the four longest standby waits in the park right now, color-banded by pain. After hours it shows today's and tomorrow's park hours instead.
+category: Lifestyle
+entry: app.star
+
+# Panel geometry. Height is 32 (fixed); 192 is the house scroll width.
+width: 192
+height: 32
+
+# Standby waits move on a 5-15 minute cadence; 300 matches the live feed's
+# ttl in app.star so each render is exactly as fresh as the data.
+refresh: 300
+
+pages:
+  - magic_kingdom
+  - epcot
+  - hollywood_studios
+  - animal_kingdom
+
+inputs: []
