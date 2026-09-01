@@ -20,7 +20,15 @@ SAFE_L = 10
 SAFE_R = 182
 
 # Font row heights - Starlark has no metrics call.
-FONTH = {"16x20": 20, "10x16": 16, "6x8": 8, "5x7": 7, "4x5": 5}
+FONTH = {"16x20": 20, "10x16": 16, "10x15_outline": 15, "8x12": 12,
+         "6x8": 8, "5x7": 7, "4x5": 5}
+
+# The unit rides smaller than the depth it belongs to: the number is the
+# reading and IN/CM is a footnote on it. Bottom-aligned with the number and
+# set 3px clear of it, so the pair reads as one figure without the unit
+# competing with the digits for weight.
+UNITF = "6x8"
+UNIT_GAP = 3
 
 # No panel font carries a degree glyph (it measures 0 and draws nothing, which
 # is how the temperature shipped as a bare "74"). These stand in for it: the
@@ -220,9 +228,16 @@ def snow(c, ctx):
         # and "120.5CM" beside "-40" falls again to 6x8. Only a 1-digit
         # temperature leaves the hero its own 16x20.
         hx = SAFE_L + 24 + 4
-        h = _fit_clip(c, one(shown) + unit, ["16x20", "10x16", "6x8"],
-                      SAFE_R - rw - 6 - hx + 1)
+        # The unit's room is taken out of the run before the number is fitted,
+        # so a long depth shrinks the digits rather than pushing the unit into
+        # the right column.
+        uw = c.text_width(unit, UNITF)
+        h = _fit_clip(c, one(shown), ["16x20", "10x16", "6x8"],
+                      SAFE_R - rw - 6 - hx + 1 - UNIT_GAP - uw)
         c.text_stroke(h[1], hx, 29 - FONTH[h[0]], font = h[0], color = col,
+                      stroke = "#05070E")
+        ux = hx + c.text_width(h[1], h[0]) + UNIT_GAP
+        c.text_stroke(unit, ux, 29 - FONTH[UNITF], font = UNITF, color = col,
                       stroke = "#05070E")
     else:
         # 64px: maximize the space. The art sits in the bottom-left corner and
