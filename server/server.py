@@ -128,6 +128,10 @@ def api_apps():
         meta["pages"] = app_page_count(APPS / a)
         meta["render"] = f"/render/{a}?page=1"
         out.append(meta)
+    # Featured apps (manifest `featured: true`) lead the catalogue; the rest
+    # stay alphabetical, so consumers that just render the list in order put
+    # the showcase apps up front.
+    out.sort(key=lambda m: (not m.get("featured", False), m["name"].lower()))
     return jsonify(out)
 
 

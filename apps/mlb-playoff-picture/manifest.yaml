@@ -2,6 +2,7 @@ id: mlb-playoff-picture
 name: MLB Playoff Picture
 author: cfdmb
 description: The AL/NL playoff bracket and Wild Card Round matchups, if the season ended today.
+category: Sports
 width: 128
 height: 32
 refresh: 7200
