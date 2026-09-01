@@ -103,20 +103,33 @@ def _fh(font):
     return {"16x20": 20, "10x16": 16, "7x12": 12, "6x8": 8, "5x7": 7, "4x5": 5}[font]
 
 
-def board(c, cells, accent, gap):
+def board(c, cells, accent, gap, pad = 6):
     """Lay a row of cards out centred on the panel.
 
-    A cell is [text, font]: each card is sized to its own contents AND its own
+    A cell is [text, font] or [text, font, gauge]: each card is sized to its own contents AND its own
     face, and every card is centred on the panel's middle row. Carrying the
     face per cell is what lets a small flap sit in the same rank as the big
     ones -- the meridiem used to be loose text pinned to the right edge, which
     read as a label ABOUT the clock rather than a flap of it. Sizing every card
     for two digits, meanwhile, made the date board's words spill out of their
-    flaps."""
+    flaps.
+
+    `pad` is the flap's horizontal padding, 3px a side by default. The 64
+    date board runs it at 2 because that is exactly what buys a full-size
+    month: AUG and a two-digit day are 67 of the panel's 64 columns at 3px a
+    side and 63 at 2px."""
     widths, heights = [], []
     total = 0
     for cell in cells:
-        w = c.text_width(cell[0], cell[1]) + 6
+        # A flap is sized to the WIDEST thing it will ever hold, not to what it
+        # holds now. 10x16 is not monospace -- I, T, Y and 1 are 9px cells
+        # against everyone else's 10 -- so sizing to the current text made the
+        # flap breathe as the value changed: DEC|25 came out 64 columns wide
+        # and AUG|31 63, and at 11 minutes past the hour both clock flaps
+        # narrowed. A flap is a physical object: the digit on it changes and
+        # the flap does not.
+        gauge = cell[2] if len(cell) > 2 else cell[0]
+        w = c.text_width(gauge, cell[1]) + pad
         widths.append(w)
         heights.append(_fh(cell[1]) + 6)
         total += w
@@ -139,8 +152,8 @@ def clock(c, ctx):
         # A 64 panel has no room for a third flap beside a 10x16 time -- two
         # flaps and a gap already take 58 of its 64 -- so it keeps the two it
         # can read at a glance.
-        board(c, [[hh, "16x20"], [mm, "16x20"],
-                  ["AM" if t["hour"] < 12 else "PM", "16x20"]], accent, 4)
+        board(c, [[hh, "16x20", "00"], [mm, "16x20", "00"],
+                  ["AM" if t["hour"] < 12 else "PM", "16x20", "AM"]], accent, 4)
     else:
         board(c, [[hh, "10x16"], [mm, "10x16"]], accent, 4)
 
@@ -153,8 +166,9 @@ def date(c, ctx):
         # The date reads at the same size as the time -- the two pages are the
         # same object seen twice, and a smaller date made the date page look
         # like a caption on the clock. Three 16x20 flaps are 159 of 192.
-        board(c, [[DOW[t["weekday"]], "16x20"], [MON[t["month"] - 1], "16x20"],
-                  [str(t["day"]), "16x20"]], accent, 4)
+        board(c, [[DOW[t["weekday"]], "16x20", "WED"],
+                  [MON[t["month"] - 1], "16x20", "SEP"],
+                  [str(t["day"]), "16x20", "00"]], accent, 4)
     else:
         # Three word-cards are wider than 64px however they are packed, so the
         # small panel drops the weekday and keeps the part you came for.
