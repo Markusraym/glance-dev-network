@@ -1,0 +1,31 @@
+gdn: 1
+id: google-reviews
+version: 0.1.0
+name: "Google Reviews"
+author: "Olskoolgamer"
+description: Your business's Google rating, live on the wall - the score as a hero number, five stars filled to the exact rating (half stars included), the review count, and your business name under the pixel Google G. No API key needed for the rating; add an optional Places API key and a second page rotates through your newest review texts with author and stars.
+category: Productivity
+entry: app.star
+
+width: 192
+height: 32
+
+# Google recomputes the public rating slowly; 30 min matches the fetch ttls.
+refresh: 1800
+
+pages: [rating, latest]
+
+inputs:
+  - key: placeid
+    type: string
+    app_input_type: free-text
+    label: Google Place ID
+    default: ""
+    help: Your business's Place ID (starts with ChIJ...). Find it with Google's Place ID Finder - see the app info page. Leave blank to preview with demo data.
+
+  - key: apikey
+    type: string
+    app_input_type: api-key
+    label: Google API key (optional)
+    default: ""
+    help: Optional - only needed for the newest-review-texts page. A Google Cloud key with Places API (New) enabled; the rating page works without any key.
