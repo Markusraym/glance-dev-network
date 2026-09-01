@@ -16,11 +16,13 @@
 # key is provided; without one it shows a designed how-to card instead.
 
 WIDGET_URL = "https://search.google.com/local/reviews"
-# The classic embed's FINAL address (maps.google.com/maps?cid=..&output=embed
+# The classic embed's FINAL addresses (maps.google.com/maps?..&output=embed
 # just 301s here, and the render host doesn't follow redirects). The pb blob
-# is the embed's own encoding of "place by CID, English" — its ! separators
-# must not be percent-encoded, so the URL is built by hand, never via params.
-EMBED_URL = "https://www.google.com/maps/embed?origin=mfe&pb=!1m3!3m2!1m1!4s{CID}!3m1!1sen!5m1!1sen"
+# is the embed's own encoding — "place by CID" or "top match for a text
+# query" — and its ! separators must not be percent-encoded, so the URLs are
+# built by hand, never via params.
+EMBED_CID_URL = "https://www.google.com/maps/embed?origin=mfe&pb=!1m3!3m2!1m1!4s{CID}!3m1!1sen!5m1!1sen"
+EMBED_Q_URL = "https://www.google.com/maps/embed?origin=mfe&pb=!1m2!2m1!1s{Q}!3m1!1sen!5m1!1sen"
 PLACES_URL = "https://places.googleapis.com/v1/places/"
 UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36"
 
@@ -217,50 +219,53 @@ def fetch_cid(placeid):
             break
     return [cid if cid != "" else None, r["status_code"]]
 
-def fetch_place(cid):
-    """Keyless hop 2: the classic embed payload. ~3.5 KB containing
-    [..,"Short Name",["addr"],RATING,"N reviews","https://search.google...
-    which is everything the scorecard needs. 30 min matches how often
-    Google recomputes the public rating."""
-    r = http.get(EMBED_URL.replace("{CID}", cid),
-                 headers = {"User-Agent": UA}, ttl_seconds = 1800)
+def fetch_place(url):
+    """Keyless: the classic embed payload. ~3.5 KB containing
+    ..,"Short Name",["addr lines"],RATING,"N reviews","https://search.google..
+    which is everything the scorecard needs — plus the Place ID (inside the
+    widget URL), which feeds the optional review-texts page. 30 min matches
+    how often Google recomputes the public rating."""
+    r = http.get(url, headers = {"User-Agent": UA}, ttl_seconds = 1800)
     if r["status_code"] != 200:
-        return None
+        return "offline"
     body = r["body"]
     p = body.find(',"https://search.google.com/local/reviews')
     if p < 0:
-        return None
+        return None            # no single matched place (region result, typo)
     q = body.rfind(',"', 0, p)
     if q < 0:
         return None
     count = num(body[q + 2:p - 1].split(" ")[0].replace(",", ""), -1)
     # The embed serializes 4.1 as 4.099999904632568 — parse as float and
     # round to one decimal, or the panel under-reports every rating.
-    rtxt = body[body.rfind(",", 0, q) + 1:q]
-    whole = num(rtxt[0:1], -1)
+    rs = body.rfind(",", 0, q) + 1
+    whole = num(body[rs:rs + 1], -1)
     if whole < 0 or count < 0:
         return None
-    rating10 = int(float(rtxt) * 10.0 + 0.5)
-    # The short name sits right after a CID occurrence: "<cid>"],"Short Name".
-    # The FIRST such occurrence is a knowledge-graph id ("/g/1td76qvq") — skip
-    # any /g/ capture and take the first human-looking one.
+    rating10 = int(float(body[rs:q]) * 10.0 + 0.5)
+    # Walk backward from the rating: ..,"Short Name",["addr1","addr2"],RATING
+    # — works whether or not we knew the CID in advance (text-query mode).
     name = ""
-    start = 0
-    for _ in range(4):
-        n1 = body.find('"' + cid + '"],"', start)
-        if n1 < 0:
-            break
-        ns = n1 + len(cid) + 5   # past  "<cid>"],"  (quote+cid+quote+]+,+quote)
-        n2 = body.find('"', ns)
-        cand = body[ns:n2] if n2 > ns else ""
-        start = ns
-        if cand != "" and not cand.startswith("/g/"):
-            name = cand
-            break
+    o = body.rfind(",[", 0, rs - 2)
+    if o > 0 and body[o - 1:o] == '"':
+        n1 = body.rfind('"', 0, o - 1)
+        if n1 >= 0:
+            name = body[n1 + 1:o - 1]
+    # The Place ID rides inside the widget URL right after our anchor.
+    pid = ""
+    i = body.find("placeid=", p)
+    if i >= 0:
+        for ch in body[i + 8:i + 60].elems():
+            if (ch >= "0" and ch <= "9") or (ch >= "A" and ch <= "Z") or \
+               (ch >= "a" and ch <= "z") or ch == "_" or ch == "-":
+                pid += ch
+            else:
+                break
     return {
         "name": name.upper(),
         "rating10": rating10,
         "count": count,
+        "placeid": pid,
         "demo": False,
     }
 
@@ -285,18 +290,42 @@ def fetch_reviews(placeid, apikey):
         })
     return [out, None]
 
+def query_encode(q):
+    """A business name + city as the embed's query token: spaces to +, and
+    only characters that can't break the pb blob survive."""
+    out = ""
+    for ch in q.elems():
+        if ch == " ":
+            out += "+"
+        elif (ch >= "0" and ch <= "9") or (ch >= "A" and ch <= "Z") or \
+             (ch >= "a" and ch <= "z") or ch in [",", ".", "-", "'"]:
+            out += ch
+    return out
+
 def load_place(ctx):
-    """[place, err]: demo when no place id is set, else the keyless chain.
+    """[place, err]: demo when the input is blank; a ChIJ.. Place ID takes
+    the widget->CID->embed chain; anything else ("Joe's Pizza Austin TX")
+    is a text query the embed resolves to its top match — no key either way.
     err: "offline" or "notfound"."""
-    placeid = str(ctx.inputs.get("placeid", "")).strip()
-    if placeid == "":
+    biz = str(ctx.inputs.get("business", "")).strip()
+    if biz == "":
         return [demo_place(), None]
-    cid, status = fetch_cid(placeid)
-    if cid == None:
-        return [None, "offline" if status == 0 else "notfound"]
-    place = fetch_place(cid)
-    if place == None:
+    if biz.startswith("ChIJ") and biz.find(" ") < 0:
+        cid, status = fetch_cid(biz)
+        if cid == None:
+            return [None, "offline" if status == 0 else "notfound"]
+        place = fetch_place(EMBED_CID_URL.replace("{CID}", cid))
+        if place == "offline" or place == None:
+            return [None, "offline"]
+        return [place, None]
+    q = query_encode(biz)
+    if q == "":
+        return [None, "notfound"]
+    place = fetch_place(EMBED_Q_URL.replace("{Q}", q))
+    if place == "offline":
         return [None, "offline"]
+    if place == None:
+        return [None, "notfound"]
     return [place, None]
 
 # ---------------------------------------------------------------- pages
@@ -308,22 +337,29 @@ def rating(c, ctx):
         chrome(c, "", DIM)
         rail(c, OFFLINE)
         if err == "notfound":
-            message(c, "PLACE NOT FOUND", "CHECK THE PLACE ID INPUT")
+            message(c, "BUSINESS NOT FOUND", "TRY NAME PLUS CITY AND STATE")
         else:
             message(c, "GOOGLE UNREACHABLE", "RATING RETURNS NEXT REFRESH")
         return
 
     chrome(c, "DEMO" if place["demo"] else "", "amber")
 
-    # Business name — the longest real-world names get clipped at a word,
-    # then shed any punctuation the cut left dangling ("GOOGLE SYDNEY -").
-    name = clip_words(c, place["name"], "6x8", 118)
+    # Business name — a whole name in a smaller font beats a clipped name in
+    # a big one ("ALL COMPUTER TECHNIQUES" fits 4x7; "ALL COMPUTER" told
+    # nobody anything). Ladder down, clip at a word only as the last resort,
+    # then shed any punctuation the cut left dangling.
+    nfont = "4x7"
+    for f in ["6x8", "5x7", "4x7"]:
+        if c.text_width(place["name"], f) <= 118:
+            nfont = f
+            break
+    name = clip_words(c, place["name"], nfont, 118)
     for _ in range(3):
         if len(name) > 0 and name[len(name) - 1] in ["-", ",", "&", ".", " "]:
             name = name[:len(name) - 1]
         else:
             break
-    c.text(name, 6, 11, font = "6x8", color = INK)
+    c.text(name, 6, 11, font = nfont, color = INK)
 
     # Stars + count along the bottom band.
     x = stars_row(c, 6, 23, place["rating10"])
@@ -344,7 +380,7 @@ def latest(c, ctx):
         chrome(c, "", DIM)
         rail(c, OFFLINE)
         if err == "notfound":
-            message(c, "PLACE NOT FOUND", "CHECK THE PLACE ID INPUT")
+            message(c, "BUSINESS NOT FOUND", "TRY NAME PLUS CITY AND STATE")
         else:
             message(c, "GOOGLE UNREACHABLE", "REVIEWS RETURN NEXT REFRESH")
         return
@@ -360,7 +396,12 @@ def latest(c, ctx):
         message(c, "REVIEW TEXTS NEED A KEY", "ADD A GOOGLE API KEY - SEE APP INFO")
         return
     else:
-        reviews, rerr = fetch_reviews(str(ctx.inputs.get("placeid", "")).strip(), apikey)
+        pid = get(place, "placeid", "")
+        if pid == "":
+            chrome(c, "", DIM)
+            message(c, "NO PLACE ID RESOLVED", "REVIEW TEXTS UNAVAILABLE")
+            return
+        reviews, rerr = fetch_reviews(pid, apikey)
         if reviews == None:
             chrome(c, "", DIM)
             rail(c, OFFLINE)

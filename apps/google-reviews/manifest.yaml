@@ -16,12 +16,12 @@ refresh: 1800
 pages: [rating, latest]
 
 inputs:
-  - key: placeid
+  - key: business
     type: string
     app_input_type: free-text
-    label: Google Place ID
+    label: Business
     default: ""
-    help: Your business's Place ID (starts with ChIJ...). Find it with Google's Place ID Finder - see the app info page. Leave blank to preview with demo data.
+    help: Your business name plus city and state, e.g. "All Computer Techniques Hollywood FL" - the app finds the matching Google listing. A Place ID (ChIJ...) also works. Leave blank to preview with demo data.
 
   - key: apikey
     type: string

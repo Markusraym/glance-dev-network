@@ -6,14 +6,15 @@ rotates through your newest review texts.
 
 ## Setup
 
-### 1. Place ID (required)
+### 1. Business (required)
 
-The **Place ID** identifies your business on Google Maps (it looks like
-`ChIJN1t_tDeuEmsRUsoyG83frY4`).
-
-Find yours with Google's Place ID Finder:
-<https://developers.google.com/maps/documentation/javascript/examples/places-placeid-finder>
-— search your business name and copy the ID it shows.
+Type your **business name plus city and state** into the Business input —
+for example `All Computer Techniques Hollywood FL`. The app resolves it to
+your Google listing the same way the Maps search box would, and shows that
+listing's rating and review count. If it matches the wrong place (chains,
+common names), add the street or use your exact **Place ID** instead
+(`ChIJ...`, from Google's Place ID Finder:
+<https://developers.google.com/maps/documentation/javascript/examples/places-placeid-finder>).
 
 No API key is needed for the rating page: the app reads the same public
 rating + review count Google shows on the map embed.
