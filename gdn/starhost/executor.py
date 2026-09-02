@@ -342,6 +342,7 @@ def app_meta(app_dir) -> dict:
         "name": str(m.get("name", app_id)),
         "description": str(m.get("description", "")),
         "category": str(m.get("category", "")),
+        "featured": bool(m.get("featured", False)),
         "author": str(m.get("author", "")),
         "version": str(m.get("version", "")),
         "width": int(m.get("width", 192)),
