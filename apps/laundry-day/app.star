@@ -123,10 +123,8 @@ def verdict(c, ctx):
 
     c.gradient_rect(0, 0, c.width - 1, c.height - 1, "#0E1220", "#26304A",
                     horizontal = False)
-    n = 24 if c.width >= 128 else 16
-    c.image("LAUNDRY.png", 2, 2, w = n, h = n)
-
     if c.width >= 128:
+        c.image("LAUNDRY.png", 2, 2, w = 24, h = 24)
         # Three stacked rows to the right of the icon: 0-15 verdict, 17-23
         # note, 25-31 detail, with a blank row between each. 16+7+7 is 30 of
         # the 32 rows, so those two spare pixels are the whole gap budget --
@@ -147,13 +145,25 @@ def verdict(c, ctx):
                + str(int(wind)) + "MPH", 30, 25, font = "5x7",
                color = "#78849C")
     else:
-        c.text_fit(line, c.width - 2, 8, ["10x16", "6x8", "5x7"], color = col,
-                   align = "right", maxw = c.width - 20)
-        # 4x5 only: 3x4 has no space glyph, so "DRY AND BREEZY" came out as
-        # "DRYANDBREEZY". That one note is 65px at 4x5 against 60px of panel,
-        # so it cannot simply widen -- the narrow layout takes a shorter
-        # wording instead of a broken one. The verdict above it already
-        # carries the meaning. Every other note fits as written.
-        short = "BREEZY" if note == "DRY AND BREEZY" else note
-        c.text_fit(short, c.width - 2, 25, ["4x5"], color = "#B0BCD4",
-                   align = "right", maxw = c.width - 4)
+        # 64 stacks, the way trash-day does at this width: one full-width
+        # headline across the top and the art beneath it, rather than an icon
+        # sharing the row with the text. Beside a 16px icon the verdict had a
+        # 43px run, and "USE THE DRYER" is 73px at its smallest option -- so
+        # text_fit drew it anyway and it ran off BOTH edges of the panel.
+        # Stacking gives the headline the full 60px and puts every verdict at
+        # 5x7 or better.
+        #
+        # Two strings still will not fit even that, so the narrow layout takes
+        # a shorter wording rather than a broken one -- the same trade the
+        # note already made for "DRY AND BREEZY". _fit_clip is the backstop:
+        # unlike text_fit it clips instead of overflowing when nothing fits.
+        SHORT = {"USE THE DRYER": "USE DRYER"}
+        SHORT_NOTE = {"DRY AND BREEZY": "BREEZY", "SLOW BUT FINE": "SLOW"}
+        h = _fit_clip(c, SHORT.get(line, line),
+                      ["10x16", "6x8", "5x7", "4x5"], c.width - 4)
+        c.text(h[1], 2, 1, font = h[0], color = col)
+        c.image("LAUNDRY.png", 2, 14, w = 16, h = 16)
+        nt = _fit_clip(c, SHORT_NOTE.get(note, note), ["5x7", "4x5"],
+                       c.width - 22)
+        c.text(nt[1], c.width - 2, 19, font = nt[0], color = "#B0BCD4",
+               align = "right")
