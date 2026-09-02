@@ -110,7 +110,11 @@ def kp(c, ctx):
     else:
         c.text("KP INDEX", c.width // 2, 0, font = "4x5", color = "#4E5A80",
                align = "center")
-        c.text(str(int(kpv)), c.width // 2, 5, font = "16x20", color = b[2],
+        # One decimal, the same reading the scroll panel gives. Kp moves in
+        # thirds, so rounding it to a whole number threw away the part that
+        # actually changes -- a 3.7 and a 3.0 are not the same night.
+        c.text(str(int(kpv * 10) / 10.0), c.width // 2, 5, font = "16x20",
+               color = b[2],
                align = "center")
         c.text_fit(b[1], c.width // 2, 26, ["4x5", "3x4"], color = b[2],
                    align = "center", maxw = c.width - 2)
