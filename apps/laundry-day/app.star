@@ -109,7 +109,7 @@ def verdict(c, ctx):
         col = "#FF5B5B"
         note = str(int(rain)) + "% RAIN"
     elif et >= 4.0 and rain < 20:
-        line = "PERFECT"
+        line = "LINE DRY"
         col = "#4EE38A"
         note = "DRY AND BREEZY"
     elif et >= 2.5:
@@ -117,7 +117,7 @@ def verdict(c, ctx):
         col = "#F5D64E"
         note = "SLOW BUT FINE"
     else:
-        line = "USE THE DRYER"
+        line = "USE DRYER"
         col = "#FF9A4A"
         note = "TOO DAMP"
 
@@ -153,17 +153,21 @@ def verdict(c, ctx):
         # Stacking gives the headline the full 60px and puts every verdict at
         # 5x7 or better.
         #
-        # Two strings still will not fit even that, so the narrow layout takes
-        # a shorter wording rather than a broken one -- the same trade the
-        # note already made for "DRY AND BREEZY". _fit_clip is the backstop:
-        # unlike text_fit it clips instead of overflowing when nothing fits.
-        SHORT = {"USE THE DRYER": "USE DRYER"}
+        # The notes still need a shorter wording at this width -- the same
+        # trade already made for "DRY AND BREEZY". _fit_clip is the backstop
+        # on both rows: unlike text_fit it clips instead of overflowing.
         SHORT_NOTE = {"DRY AND BREEZY": "BREEZY", "SLOW BUT FINE": "SLOW"}
-        h = _fit_clip(c, SHORT.get(line, line),
-                      ["10x16", "6x8", "5x7", "4x5"], c.width - 4)
+        h = _fit_clip(c, line, ["10x16", "6x8", "5x7", "4x5"], c.width - 4)
         c.text(h[1], 2, 1, font = h[0], color = col)
         c.image("LAUNDRY.png", 2, 14, w = 16, h = 16)
-        nt = _fit_clip(c, SHORT_NOTE.get(note, note), ["5x7", "4x5"],
-                       c.width - 22)
-        c.text(nt[1], c.width - 2, 19, font = nt[0], color = "#B0BCD4",
+        # Right column, under the headline: the reason at 4x5 on rows 15-19,
+        # then the LAUNDRY pill on rows 22-28. The pill is what says which app
+        # this is -- the 192 panel has one and the 64 had nothing but a
+        # clothesline to go on -- so it is drawn every render rather than only
+        # when a verdict happens to leave room.
+        nt = _fit_clip(c, SHORT_NOTE.get(note, note), ["4x5"], c.width - 22)
+        c.text(nt[1], c.width - 2, 15, font = nt[0], color = "#B0BCD4",
                align = "right")
+        bw = c.text_width("LAUNDRY", "4x5") + 4
+        c.badge("LAUNDRY", c.width - 2 - bw + 1, 22,
+                color = "black", bg = "#7FB6E8", font = "4x5")
