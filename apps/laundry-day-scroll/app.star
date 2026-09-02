@@ -109,7 +109,7 @@ def verdict(c, ctx):
         col = "#FF5B5B"
         note = str(int(rain)) + "% RAIN"
     elif et >= 4.0 and rain < 20:
-        line = "PERFECT"
+        line = "LINE DRY"
         col = "#4EE38A"
         note = "DRY AND BREEZY"
     elif et >= 2.5:
@@ -117,7 +117,7 @@ def verdict(c, ctx):
         col = "#F5D64E"
         note = "SLOW BUT FINE"
     else:
-        line = "USE THE DRYER"
+        line = "USE DRYER"
         col = "#FF9A4A"
         note = "TOO DAMP"
 
@@ -136,11 +136,17 @@ def verdict(c, ctx):
         # (starting at x=95 for "SLOW BUT FINE"), so the two drew straight
         # through each other. Every row is left-aligned at x=30 now, which
         # also means no pair can collide as the strings change.
-        # LAUNDRY pill rides 4px off the end of the verdict, wherever the
-        # verdict happens to end.
+        # LAUNDRY pill rides 4px off the end of the verdict -- but only while
+        # there is panel left to ride onto. "USE THE DRYER" is 140px at 10x16
+        # and ends at x=171, which pushed the 38px pill to x=176 and hung 22px
+        # of it off the end; it rendered as "LAU". The pill is a label, not the
+        # message, so it gives way when the verdict needs the room.
         c.text(line, 32, 0, font = "10x16", color = col)
-        c.badge("LAUNDRY", 32 + c.text_width(line, "10x16") + 4, 0,
-                color = "black", bg = "#7FB6E8", font = "4x5")
+        pill_x = 32 + c.text_width(line, "10x16") + 4
+        pill_w = c.text_width("LAUNDRY", "4x5") + 4
+        if pill_x + pill_w - 1 <= c.width - 2:
+            c.badge("LAUNDRY", pill_x, 0,
+                    color = "black", bg = "#7FB6E8", font = "4x5")
         c.text(note, 32, 17, font = "5x7", color = "#B0BCD4")
         # Two spaces, and MPH tight against the number: at three spaces the
         # worst realistic reading ("DRYING 12.5MM   WIND 100 MPH") is 167px
