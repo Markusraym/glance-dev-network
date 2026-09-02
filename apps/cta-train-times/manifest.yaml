@@ -6,7 +6,7 @@ description: Live Chicago 'L' arrival times for any CTA station.
 category: Transportation
 width: 128
 height: 32
-refresh: 60
+refresh: 180
 pages: [main]
 
 inputs:

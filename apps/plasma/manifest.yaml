@@ -9,7 +9,7 @@ entry: app.star
 
 width: 64
 height: 32
-refresh: 300
+refresh: 864000
 
 pages: [waves, rings, weave]
 

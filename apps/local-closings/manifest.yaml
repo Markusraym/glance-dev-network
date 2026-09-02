@@ -9,7 +9,7 @@ entry: app.star
 width: 192
 height: 32
 # Closings change on a human timescale. Five minutes is enough.
-refresh: 300
+refresh: 3600
 pages: [board, one, two, three, four, five]
 inputs:
   - key: school

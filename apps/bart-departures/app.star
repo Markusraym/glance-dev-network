@@ -190,7 +190,7 @@ def departures(c, ctx):
 
     r = http.get("https://api.bart.gov/api/etd.aspx",
                  params = {"cmd": "etd", "orig": st, "key": key, "json": "y"},
-                 ttl_seconds = 600)  # in sync with the manifest refresh
+                 ttl_seconds = 180)  # in sync with the manifest refresh
     if r["status_code"] != 200 or not r["json"]:
         nodata(c, "NO BART DATA", "NO CONNECTION")
         return
