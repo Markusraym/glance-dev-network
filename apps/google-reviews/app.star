@@ -2,18 +2,16 @@
 # is the scorecard: the pixel Google "G" and a quiet GOOGLE REVIEWS eyebrow,
 # the business name, five hand-drawn stars filled to the live rating (half
 # stars included), the review count — and the rating itself as the hero,
-# because that number is the whole reason the panel exists. Page two rotates
-# the newest review texts: mini-stars, author, how long ago, two clipped
-# lines. Black ground; Google's four brand colors carried by a segmented
-# rail, the G, and the gold of the stars.
+# because that number is the whole reason the panel exists. Black ground;
+# Google's four brand colors carried by a segmented rail, the G, and the
+# gold of the stars.
 #
 # DATA — deliberately keyless for the core. Google's classic embed endpoint
 # (maps.google.com/maps?cid=N&output=embed) hands back name, rating and
 # review count in ~3.5 KB with no API key; the CID comes from the public
 # reviews-widget redirect (search.google.com/local/reviews?placeid=X, ~800 B,
-# static mapping cached a day). Review TEXTS are session-locked on the
-# keyless endpoints, so page two lights up only when an optional Places API
-# key is provided; without one it shows a designed how-to card instead.
+# static mapping cached a day). Review TEXTS are session-locked on every
+# keyless endpoint, so this app deliberately stays a one-page scorecard.
 
 WIDGET_URL = "https://search.google.com/local/reviews"
 # The classic embed's FINAL addresses (maps.google.com/maps?..&output=embed
@@ -23,7 +21,6 @@ WIDGET_URL = "https://search.google.com/local/reviews"
 # built by hand, never via params.
 EMBED_CID_URL = "https://www.google.com/maps/embed?origin=mfe&pb=!1m3!3m2!1m1!4s{CID}!3m1!1sen!5m1!1sen"
 EMBED_Q_URL = "https://www.google.com/maps/embed?origin=mfe&pb=!1m2!2m1!1s{Q}!3m1!1sen!5m1!1sen"
-PLACES_URL = "https://places.googleapis.com/v1/places/"
 UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36"
 
 STRUCT = "darkgray"
@@ -128,30 +125,21 @@ STAR_HALF = [
     "..XX",
     ".XX.",
 ]
-MINI_STAR = [
-    "..X..",
-    ".XXX.",
-    "XXXXX",
-    ".XXX.",
-    ".X.X.",
-]
 
-def stars_row(c, x, y, rating10, step = 9, mini = False):
+def stars_row(c, x, y, rating10, step = 9):
     """Five stars filled to `rating10` (rating x 10, e.g. 41 = 4.1): full at
     >= .75 within a star, half at >= .25, track below. Returns end x."""
-    art = MINI_STAR if mini else STAR
-    half = None if mini else STAR_HALF
     for i in range(5):
         remain = rating10 - i * 10
-        if remain >= 8 or (mini and remain >= 5):
-            c.sprite(art, x, y, color = STAR_GOLD)
-        elif remain >= 3 and not mini:
-            c.sprite(art, x, y, color = STAR_TRACK)
-            c.sprite(half, x, y, color = STAR_GOLD)
+        if remain >= 8:
+            c.sprite(STAR, x, y, color = STAR_GOLD)
+        elif remain >= 3:
+            c.sprite(STAR, x, y, color = STAR_TRACK)
+            c.sprite(STAR_HALF, x, y, color = STAR_GOLD)
         else:
-            c.sprite(art, x, y, color = STAR_TRACK)
+            c.sprite(STAR, x, y, color = STAR_TRACK)
         x = x + step
-    return x - (step - (5 if mini else 7))
+    return x - (step - 7)
 
 def rail(c, color = None):
     """The Google rail: four brand-color segments — or one status color."""
@@ -187,14 +175,6 @@ def demo_place():
         "demo": True,
     }
 
-DEMO_REVIEWS = [
-    {"stars": 5, "author": "JESS M.", "when": "2 DAYS AGO",
-     "text": "GREAT SERVICE AND A SUPER FRIENDLY TEAM. FAST TURNAROUND TOO - HIGHLY RECOMMEND THEM."},
-    {"stars": 5, "author": "MARCUS T.", "when": "1 WEEK AGO",
-     "text": "BEST IN TOWN. THEY WENT ABOVE AND BEYOND ON OUR ORDER."},
-    {"stars": 4, "author": "PRIYA K.", "when": "3 WEEKS AGO",
-     "text": "SOLID EXPERIENCE, QUICK REPLIES, FAIR PRICING. WOULD USE AGAIN."},
-]
 
 def fetch_cid(placeid):
     """Keyless hop 1: the public reviews-widget redirect leaks the CID in its
@@ -278,60 +258,40 @@ def parse_place(body):
         n1 = body.rfind('"', 0, o - 1)
         if n1 >= 0:
             name = body[n1 + 1:o - 1]
-    # The Place ID rides inside the widget URL right after our anchor.
-    pid = ""
-    i = body.find("placeid=", p)
-    if i >= 0:
-        for ch in body[i + 8:i + 60].elems():
-            if (ch >= "0" and ch <= "9") or (ch >= "A" and ch <= "Z") or \
-               (ch >= "a" and ch <= "z") or ch == "_" or ch == "-":
-                pid += ch
-            else:
-                break
     return {
         "name": name.upper(),
         "rating10": rating10,
         "count": count,
-        "placeid": pid,
         "demo": False,
     }
 
-def fetch_reviews(placeid, apikey):
-    """Official Places API, only when a key is offered: newest review texts.
-    Returns [reviews, err] — err is a short reason for the designed cards."""
-    r = http.get(PLACES_URL + placeid,
-                 params = {"fields": "reviews", "key": apikey},
-                 ttl_seconds = 1800)
-    if r["status_code"] == 0:
-        return [None, "offline"]
-    if r["status_code"] != 200:
-        return [None, "badkey"]
+def _words(s, minlen):
+    """Alphabetic words of at least `minlen` letters, minus glue words."""
     out = []
-    for rv in lst(r["json"], "reviews"):
-        text = str(dig(rv, ["text", "text"], "")).replace("\n", " ")
-        out.append({
-            "stars": get(rv, "rating", 0),
-            "author": str(dig(rv, ["authorAttribution", "displayName"], "")).upper(),
-            "when": str(get(rv, "relativePublishTimeDescription", "")).upper(),
-            "text": text.upper(),
-        })
-    return [out, None]
+    word = ""
+    for ch in (str(s).upper() + " ").elems():
+        if ch >= "A" and ch <= "Z":
+            word += ch
+        else:
+            if len(word) >= minlen and word not in ["THE", "AND"]:
+                out.append(word)
+            word = ""
+    return out
 
 def query_overlap(ctx, matched_name):
-    """How many meaningful words (4+ letters) of the user's query appear in
-    the matched business name. 0 = probably the wrong business."""
+    """Shared meaningful words between the user's query and the matched
+    business name, checked BOTH ways ("Le Tub Saloon" matching "LE TUB"
+    counts via TUB). 0 = probably the wrong business."""
     biz = str(ctx.inputs.get("business", "")).upper()
     if biz.startswith("CHIJ"):
         return 1   # exact-ID mode can't mismatch
     hits = 0
-    word = ""
-    for ch in (biz + " ").elems():
-        if (ch >= "A" and ch <= "Z"):
-            word += ch
-        else:
-            if len(word) >= 4 and matched_name.find(word) >= 0:
-                hits += 1
-            word = ""
+    for w in _words(biz, 4):
+        if matched_name.find(w) >= 0:
+            hits += 1
+    for w in _words(matched_name, 3):
+        if biz.find(w) >= 0:
+            hits += 1
     return hits
 
 def query_encode(q):
@@ -433,70 +393,3 @@ def rating(c, ctx):
     c.text(str(r // 10) + "." + str(r % 10), 185, 6, font = "16x20",
            color = INK, align = "right")
     c.text("OUT OF 5", 185, 27, font = "4x5", color = DIM, align = "right")
-
-def latest(c, ctx):
-    place, err = load_place(ctx)
-
-    if place == None:
-        chrome(c, "", DIM)
-        rail(c, OFFLINE)
-        if err == "notfound":
-            message(c, "BUSINESS NOT FOUND", "TRY NAME PLUS CITY AND STATE")
-        else:
-            message(c, "GOOGLE UNREACHABLE", "REVIEWS RETURN NEXT REFRESH")
-        return
-
-    apikey = str(ctx.inputs.get("apikey", "")).strip()
-
-    if place["demo"]:
-        reviews = DEMO_REVIEWS
-    elif apikey == "":
-        # Keyless mode: rating/count need no key, review TEXTS do. Say so
-        # once, usefully, instead of a blank page.
-        chrome(c, "", DIM)
-        message(c, "REVIEW TEXTS NEED A KEY", "ADD A GOOGLE API KEY - SEE APP INFO")
-        return
-    else:
-        pid = get(place, "placeid", "")
-        if pid == "":
-            chrome(c, "", DIM)
-            message(c, "NO PLACE ID RESOLVED", "REVIEW TEXTS UNAVAILABLE")
-            return
-        reviews, rerr = fetch_reviews(pid, apikey)
-        if reviews == None:
-            chrome(c, "", DIM)
-            rail(c, OFFLINE)
-            if rerr == "badkey":
-                message(c, "KEY REJECTED", "ENABLE PLACES API FOR THIS KEY")
-            else:
-                message(c, "GOOGLE UNREACHABLE", "REVIEWS RETURN NEXT REFRESH")
-            return
-
-    if len(reviews) == 0:
-        chrome(c, "", DIM)
-        message(c, "NO REVIEWS YET", "SHARE YOUR REVIEW LINK", "green")
-        return
-
-    # One review per refresh, newest first; meta says where we are.
-    i = (ctx.now.unix // 1800) % len(reviews)
-    rv = reviews[i]
-    meta = str(i + 1) + "/" + str(len(reviews))
-    if place["demo"]:
-        meta = "DEMO"
-    chrome(c, meta, "amber" if place["demo"] else DIM)
-
-    x = stars_row(c, 6, 10, int(rv["stars"]) * 10, step = 6, mini = True)
-    who = clip_words(c, rv["author"], "4x5", 100)
-    c.text(who, x + 5, 10, font = "4x5", color = INK)
-    wx = x + 5 + c.text_width(who, "4x5") + 4
-    c.text(clip(c, rv["when"], "4x5", 182 - wx), wx, 10, font = "4x5", color = DIM)
-
-    # Two lines of the review, clipped at words; an ellipsis marks a real cut.
-    line1 = clip_words(c, rv["text"], "4x5", 176)
-    rest = rv["text"][len(line1):].strip()
-    line2 = clip_words(c, rest, "4x5", 168)
-    if line2 != rest and line2 != "":
-        line2 = line2 + ".."
-    c.text(line1, 6, 19, font = "4x5", color = "#B9C2D4")
-    if line2 != "":
-        c.text(line2, 6, 26, font = "4x5", color = "#B9C2D4")
