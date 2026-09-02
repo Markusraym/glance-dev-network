@@ -5,7 +5,7 @@ description: Crisp full Ironclad image.
 category: Fun
 width: 64
 height: 32
-refresh: 3600
+refresh: 864000
 pages: [main]
 assets:
   - ironclad_crisp_full.png
