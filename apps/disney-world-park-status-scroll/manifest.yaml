@@ -11,9 +11,9 @@ entry: app.star
 width: 192
 height: 32
 
-# Standby waits move on a 5-15 minute cadence; 300 matches the live feed's
-# ttl in app.star so each render is exactly as fresh as the data.
-refresh: 300
+# 30 minutes, consistent with the classic Disney World Parks build; the
+# live feed's ttl in app.star moves with it.
+refresh: 1800
 
 pages:
   - magic_kingdom
