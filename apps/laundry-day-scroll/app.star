@@ -147,14 +147,23 @@ def verdict(c, ctx):
         if pill_x + pill_w - 1 <= c.width - 2:
             c.badge("LAUNDRY", pill_x, 0,
                     color = "black", bg = "#7FB6E8", font = "4x5")
-        c.text(note, 32, 17, font = "5x7", color = "#B0BCD4")
+        nt = _fit_clip(c, note, ["5x7", "4x5"], c.width - 34)
+        c.text(nt[1], 32, 17, font = nt[0], color = "#B0BCD4")
         # Two spaces, and MPH tight against the number: at three spaces the
         # worst realistic reading ("DRYING 12.5MM   WIND 100 MPH") is 167px
         # against the 156px this row has, so it would have overflowed exactly
         # the way the bugs this batch has been fixing do.
-        c.text("DRYING " + str(int(et * 10) / 10.0) + "MM  WIND "
-               + str(int(wind)) + "MPH", 32, 25, font = "5x7",
-               color = "#78849C")
+        #
+        # 4x5 on rows 26-30, not 5x7 on 25-31. Three 5x7-and-taller rows spend
+        # 16+7+7 = 30 of the 32, and both spare pixels have to go between the
+        # rows or the 5x7 lines read as merged -- which left this row sitting
+        # on row 31, hard against the bottom edge, looking cut off. Dropping
+        # the least important row to 4x5 buys the row back: 16+7+5 = 28, so
+        # the gaps stay and row 31 is clear. Bounded too, like the note: both
+        # were plain c.text with no limit at all.
+        st = _fit_clip(c, "DRYING " + str(int(et * 10) / 10.0) + "MM  WIND "
+                       + str(int(wind)) + "MPH", ["4x5"], c.width - 34)
+        c.text(st[1], 32, 26, font = st[0], color = "#78849C")
     else:
         c.text_fit(line, c.width - 2, 8, ["10x16", "6x8", "5x7"], color = col,
                    align = "right", maxw = c.width - 20)
