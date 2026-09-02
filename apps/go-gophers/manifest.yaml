@@ -14,7 +14,7 @@ width: 192
 height: 32
 
 # Seconds between re-renders (minimum 60 for public apps).
-refresh: 3600
+refresh: 86400
 
 # Pages the panel rotates through, in order. app.star must define a function per name.
 pages: [sign]

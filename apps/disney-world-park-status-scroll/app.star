@@ -227,8 +227,9 @@ def _get_json(url, ttl):
     return response["json"]
 
 def _get_live_data(park_id):
-    # ttl 300 matches the manifest's refresh: waits move every few minutes.
-    data = _get_json(API_BASE + park_id + "/live", 300)
+    # ttl 1800 matches the manifest's refresh (30 min, consistent with the
+    # classic build).
+    data = _get_json(API_BASE + park_id + "/live", 1800)
     if data == None:
         return None
     return lst(data, "liveData")

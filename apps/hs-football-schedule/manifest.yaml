@@ -16,7 +16,7 @@ height: 32
 # credit plan. At 12 hours it is ~124, and a football schedule set weeks in
 # advance does not need finer resolution than that. All 6 pages share one
 # cached response (ttl_seconds in app.star matches this interval).
-refresh: 43200
+refresh: 10800
 
 # A title card naming the school, then one card per upcoming game.
 pages: [next_up, game1, game2, game3, game4, game5]
