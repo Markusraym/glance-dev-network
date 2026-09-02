@@ -494,10 +494,17 @@ def score(c, ctx):
         # Hero: the beach score, 0-100. Worst case "100" is 50px at 16x20.
         c.text_stroke(str(total), HERO_X, HERO_Y, font = "16x20",
                       color = v[1], stroke = "black")
-        # ...and the two words that say what that number is.
-        c.text_stroke("BEACH", LBL_X, LBL_Y1, font = "4x5", color = "#DCEAF6",
+        # ...and the two words that say what that number is, set 4px off the
+        # score itself rather than at a fixed column. LBL_X was placed for the
+        # worst case ("100" is 50px and ends at 59), so at an ordinary
+        # two-digit score the words sat 21px clear of the number they label
+        # and read as part of the temperature block instead. Anchoring them to
+        # the score keeps the group together at every width; the 3-digit case
+        # lands exactly where it always did.
+        lbl_x = HERO_X + c.text_width(str(total), "16x20") + 4
+        c.text_stroke("BEACH", lbl_x, LBL_Y1, font = "4x5", color = "#DCEAF6",
                       stroke = "black")
-        c.text_stroke("SCORE", LBL_X, LBL_Y2, font = "4x5", color = "#DCEAF6",
+        c.text_stroke("SCORE", lbl_x, LBL_Y2, font = "4x5", color = "#DCEAF6",
                       stroke = "black")
         # Location, because a weather app that won't say where it is reads as
         # a bug. "MALIBU" is 29px and fits; "SAN FRANCISCO" is 62px, so wide
@@ -507,7 +514,7 @@ def score(c, ctx):
         if loc == "" or c.text_width(loc, "4x5") > LOC_MAX:
             loc = str(ctx.inputs.get("zip", "")).strip()
         lc = _fit_clip(c, loc, ["4x5"], LOC_MAX)
-        c.text_stroke(lc[1], LBL_X, LOC_Y, font = lc[0], color = "#FFE9A8",
+        c.text_stroke(lc[1], lbl_x, LOC_Y, font = lc[0], color = "#FFE9A8",
                       stroke = "black")
 
         # Temperature: digits + degree ring + F/C, the only number here that
@@ -539,6 +546,11 @@ def score(c, ctx):
 
         # Verdict pill: black on the state color, so it reads at 30 feet even
         # against bright sand.
+        # A 1px black keyline around the pill: the sand behind it is bright
+        # and a light verdict colour was running straight into it.
+        pw = c.text_width(v[0], "4x5") + 4
+        c.round_rect(TEXT_L - 1, PILL_Y - 1, TEXT_L + pw, PILL_Y + 7, 2,
+                     fill = "black")
         c.badge(v[0], TEXT_L, PILL_Y, color = "black", bg = v[1],
                 font = "4x5", pad = 2)
     else:
