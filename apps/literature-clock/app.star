@@ -432,6 +432,50 @@ LIT = ("https://raw.githubusercontent.com/JohsEnevoldsen/" +
 
 AMBER = "#FFB000"
 
+# ---- time zone -------------------------------------------------------------
+# ctx.now is UTC, and the whole app is "a passage that names this exact
+# minute", so rendering UTC put every US wall five to eight hours out. The zone
+# is a dropdown resolved locally: no network, no zip lookup. Same table and
+# US daylight-saving rule as apps/word-clock.
+#
+# name -> [standard offset in minutes east of UTC, observes US DST]
+ZONES = {
+    "PACIFIC": [-480, True],
+    "ARIZONA": [-420, False],
+    "MOUNTAIN": [-420, True],
+    "CENTRAL": [-360, True],
+    "EASTERN": [-300, True],
+}
+DEFAULT_ZONE = "EASTERN"
+
+def nth_sunday(y, m, n):
+    """Day of the month of the nth Sunday."""
+    first = 1 + ((6 - weekday(days_from_civil(y, m, 1))) % 7)
+    return first + 7 * (n - 1)
+
+def _utcmin(y, m, d, hh):
+    return days_from_civil(y, m, d) * 1440 + hh * 60
+
+def zone_offset_at(zone, t):
+    """Minutes east of UTC for `zone` at the UTC instant `t` (minutes since
+    the epoch). Compared in UTC so the changeover discontinuity never has to
+    be reasoned about: 2nd Sunday in March at 02:00 standard -> 1st Sunday in
+    November at 02:00 daylight, which is 01:00 standard."""
+    z = ZONES[zone] if zone in ZONES else ZONES[DEFAULT_ZONE]
+    std = z[0]
+    if not z[1]:
+        return std
+    y = civil_from_days(t // 1440)[0]
+    start = _utcmin(y, 3, nth_sunday(y, 3, 2), 2) - std
+    end = _utcmin(y, 11, nth_sunday(y, 11, 1), 2) - std - 60
+    return std + 60 if t >= start and t < end else std
+
+def local_minutes(ctx):
+    """Minutes since the epoch on the viewer's wall clock."""
+    zone = str(ctx.inputs.get("zone", DEFAULT_ZONE)).strip().upper()
+    t = ctx.now.unix // 60
+    return t + zone_offset_at(zone, t)
+
 def strip_tags(t):
     """The dataset carries literal HTML. quote_first for 22:08 contains
     "<br/>", and since normalise() drops the angle brackets as undrawable the
@@ -478,7 +522,8 @@ def fetch_minute(h, m):
 
 def read_lit(ctx):
     st = {"state": "ok", "q": None, "late": 0}
-    h, m = ctx.now.hour, ctx.now.minute
+    t = local_minutes(ctx)
+    h, m = (t % 1440) // 60, t % 60
     # Walk back a few minutes rather than showing nothing. Six is enough to
     # cover the dataset's gaps without the wall being noticeably wrong.
     for back in range(7):
@@ -510,7 +555,7 @@ def read_lit(ctx):
         if len(pool) == 0:
             continue
         # Stable within the minute, different from one day to the next.
-        seed = (ctx.now.year * 10000 + ctx.now.month * 100 + ctx.now.day) * 1440
+        seed = (t // 1440) * 1440
         pick = pool[(seed + hh * 60 + mm) % len(pool)]
         st["q"] = {
             "first": norm_edge(get(pick, "quote_first", "")),
