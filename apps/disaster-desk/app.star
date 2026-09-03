@@ -132,6 +132,39 @@ ICON_QUAKE = """
 .......
 """
 
+# 8x12's I and hyphen are solid 6x12 blocks in the panel font (same
+# hardware glyph as bitmap_8x12.php). Substitute real shapes; width
+# matches the 8px advance so measuring with text_width still holds.
+GLYPH_8X12_I = """
+.######.
+.######.
+...##...
+...##...
+...##...
+...##...
+...##...
+...##...
+...##...
+...##...
+.######.
+.######.
+"""
+
+GLYPH_8X12_DASH = """
+........
+........
+........
+........
+........
+.######.
+.######.
+........
+........
+........
+........
+........
+"""
+
 # ---------- strings / fields ----------
 
 def _s(ctx, key, fallback):
@@ -719,6 +752,26 @@ def fit_one(c, text, fonts, maxw):
     font = fonts[len(fonts) - 1]
     return font, ellipsis(c, text, font, maxw)
 
+def draw_8x12(c, text, x, y, color):
+    xx = x
+    n = len(text)
+    for i in range(n):
+        ch = text[i]
+        if ch == "I":
+            c.sprite(GLYPH_8X12_I, xx, y, color = color)
+        elif ch == "-":
+            c.sprite(GLYPH_8X12_DASH, xx, y, color = color)
+        else:
+            c.text(ch, xx, y, font = "8x12", color = color)
+        w = c.text_width(ch, "8x12")
+        xx = xx + w + 1
+
+def draw_text(c, text, x, y, font, color):
+    if font == "8x12" and (text.find("I") >= 0 or text.find("-") >= 0):
+        draw_8x12(c, text, x, y, color)
+        return
+    c.text(text, x, y, font = font, color = color)
+
 def font_h(font):
     if font == "10x16":
         return 16
@@ -773,7 +826,7 @@ def draw_shell(c, rec, thick):
 
 def draw_clipped(c, text, x, y, maxw, fonts, color):
     font, t = fit_one(c, text, fonts, maxw)
-    c.text(t, x, y, font = font, color = color)
+    draw_text(c, t, x, y, font, color)
 
 def yesno(flag):
     if flag:
@@ -826,7 +879,7 @@ def alert(c, ctx):
         place = "LATEST USA"
     maxw = 182
     font, place_t = fit_one(c, place, ["8x12", "6x8", "5x7", "4x5"], maxw)
-    c.text(place_t, 6, 11, font = font, color = "white")
+    draw_text(c, place_t, 6, 11, font, "white")
 
     sub = decl_label(kind)
     if rec["today"]:
@@ -892,7 +945,7 @@ def declared(c, ctx):
     if when == "":
         when = "DATE UNKNOWN"
     font, when_t = fit_one(c, when, ["8x12", "6x8", "5x7"], 182)
-    c.text(when_t, 6, 12, font = font, color = col)
+    draw_text(c, when_t, 6, 12, font, col)
 
     code = decl_code(rec)
     if code == "":
